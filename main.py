@@ -1,5 +1,5 @@
 # main.py
-# FINAL ULTIMATE VERSION: No database, Gemini for business questions, stable deployment.
+# FINAL ULTIMATE VERSION: Includes CORS fix and Gemini fallback. No database.
 
 import uuid
 import httpx
@@ -9,7 +9,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from nlp_engine import NlpEngine
 from dotenv import load_dotenv
-from starlette.middleware.cors import CORSMiddleware 
+from starlette.middleware.cors import CORSMiddleware # CRITICAL IMPORT
 
 # --- CONFIGURATION ---
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-latest:generateContent"
@@ -18,7 +18,7 @@ GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 
-# CRITICAL FIX for "Connecting..." issue on deployment
+# --- CRITICAL FIX: ADD CORS MIDDLEWARE (Solves WebSocket "Connecting..." issue) ---
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], 
@@ -26,6 +26,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# --------------------------------------------------------------------------------
 
 engine = None
 try:
@@ -42,7 +43,7 @@ async def call_gemini_api(prompt: str):
         return "**Error:** The `GEMINI_API_KEY` is not configured on the server."
     
     headers = {"Content-Type": "application/json"}
-    payload = {"contents": [{"parts": [{"text": prompt}]}]}
+    payload = {"contents": [{"parts": [{"text": prompt}]}], "tools": [{"google_search": {}}]}
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(f"{GEMINI_API_URL}?key={GEMINI_API_KEY}", json=payload, headers=headers)
@@ -50,10 +51,10 @@ async def call_gemini_api(prompt: str):
             result = response.json()
             if "candidates" in result and result["candidates"]:
                 return result["candidates"][0]["content"]["parts"][0]["text"]
-            return "I'm sorry, I couldn't generate a unique response at this time."
+            return "I'm sorry, I couldn't generate a response at this time."
     except Exception as e:
         print(f"❌ Gemini API Error: {e}")
-        return "I'm having trouble connecting to my generative AI service right now."
+        return "I'm having trouble connecting to my extended knowledge base right now."
 
 # --- HTTP ENDPOINT ---
 @app.get("/", response_class=HTMLResponse)
@@ -76,43 +77,14 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         while True:
             user_message = await websocket.receive_text()
-            
             matched_intent = engine.get_intent(user_message)
             intent_tag = matched_intent.get('tag', 'unknown') if matched_intent else 'unknown'
             
-            COMPLEX_INTENTS = [
-                'creator_details', 'who_are_you', 'capabilities', 'company_info',
-                'hours', 'location', 'origin', 'payments', 'returns', 'shipping', 'tracking',
-                'order_management', 'discounts', 'technical_support', 'account_issues',
-                'privacy_policy', 'product_info', 'billing_issues', 'feedback'
-            ]
-            
-            if intent_tag in COMPLEX_INTENTS:
-                # For complex business intents, use Gemini to generate a smart, unique response.
-                print(f"Intent is '{intent_tag}'. Calling Gemini API for a smart, generative response...")
-                
-                context_answer = engine.get_response(matched_intent)
-                
-                prompt = f"""
-                You are Humongous AI, a helpful and friendly expert assistant created by Akilan S R.
-                Your task is to provide a detailed, conversational answer to the user's question based ONLY on the provided context.
-                Do not add any information that is not in the context.
-
-                CONTEXT:
-                "{context_answer}"
-
-                USER'S QUESTION:
-                "{user_message}"
-
-                YOUR HELPFUL AND DETAILED CONVERSATIONAL ANSWER:
-                """
-                
-                gemini_response = await call_gemini_api(prompt)
+            if intent_tag == 'fallback':
+                print(f"Intent is 'fallback'. Calling Gemini API...")
+                gemini_response = await call_gemini_api(user_message)
                 bot_response = f"✨ {gemini_response}"
-
             else:
-                # For simple intents (like jokes) and fallbacks, use the fast, static response.
-                print(f"Intent is '{intent_tag}'. Responding with static answer.")
                 bot_response = engine.get_response(matched_intent)
             
             await websocket.send_json({"type": "chat", "message": bot_response})
