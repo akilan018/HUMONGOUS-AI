@@ -29,9 +29,6 @@ class NlpEngine:
         best_match_score = 0.0
         best_match_intent = None
 
-        print("\n--- INTENT SCORING ANALYSIS ---")
-        print(f"User Keywords: {user_keywords}")
-
         for intent in self.intents:
             max_pattern_score = 0.0
             for pattern in intent['patterns']:
@@ -44,21 +41,15 @@ class NlpEngine:
                 
                 if score > max_pattern_score: max_pattern_score = score
             
-            print(f"  - Intent: '{intent['tag']}', Score: {max_pattern_score:.2f}")
-
             if max_pattern_score > best_match_score:
                 best_match_score = max_pattern_score
                 best_match_intent = intent
         
         CONFIDENCE_THRESHOLD = 0.25
-        print(f"==> Best Match Found: '{best_match_intent['tag'] if best_match_intent else 'None'}' with score {best_match_score:.2f}")
         
         if best_match_score >= CONFIDENCE_THRESHOLD:
-            print("--- END SCORING (Confident Match) ---")
             return best_match_intent
         else:
-            print(f"Confidence score is below threshold of {CONFIDENCE_THRESHOLD}. Using fallback.")
-            print("--- END SCORING (Fallback) ---")
             return next((i for i in self.intents if i['tag'] == 'fallback'), None)
 
     def get_response(self, intent):
