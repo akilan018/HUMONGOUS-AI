@@ -16,21 +16,21 @@
     <style>
         body {
             padding: 0 !important; margin: 0 !important;
-            background-image: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('https://images.pexels.com/photos/325185/pexels-photo-325185.jpeg');
+            /* NEW CUSTOM AI BACKGROUND IMAGE */
+            background-image: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url('https://th.bing.com/th/id/R.5ae94a11f2a3c7dd65f6dded4fc8281e?rik=WJk544QY44uEeg&pid=ImgRaw&r=0');
             background-size: cover; background-position: center; font-family: 'Inter', sans-serif; overflow: hidden;
+            display: flex; /* CRITICAL for centering */
+            align-items: center; /* CRITICAL for vertical centering */
+            justify-content: center; /* CRITICAL for horizontal centering */
+            min-height: 100vh; /* Ensure body takes full height */
         }
         .chat-container {
             height: 100vh !important; max-width: 100% !important; border-radius: 0 !important; 
             backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
             background-color: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 0 20px rgba(0,0,0,0.5); /* Added subtle shadow */
         }
         @media (min-width: 768px) {
-            body { 
-                padding: 1.5rem !important; 
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
             .chat-container { height: 90vh !important; max-width: 800px !important; border-radius: 1rem !important; }
         }
         #chat-box::-webkit-scrollbar { width: 8px; } #chat-box::-webkit-scrollbar-thumb { background: #ced4da; border-radius: 4px; }
