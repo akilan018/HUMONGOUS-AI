@@ -3,12 +3,14 @@ fastapi
 uvicorn[standard]
 Jinja2
 
-# Natural Language Processing (NLP)
-spacy==3.7.5
-
 # API Calls and Environment Variables
 httpx
 python-dotenv
 
-# FastAPI Dependencies (good to have for stability)
+# FastAPI Dependencies
 starlette
+
+# Natural Language Processing (NLP) - CRITICAL FIX
+# We install spacy and the model directly from a wheel file to guarantee it works on Render.
+spacy==3.7.5
+https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1.tar.gz
