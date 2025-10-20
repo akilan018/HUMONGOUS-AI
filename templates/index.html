@@ -4,200 +4,125 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Humongous AI</title>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
   <style>
-    body {
-      margin: 0;
-      background-color: #000;
-      font-family: "Poppins", sans-serif;
-      color: #fff;
-    }
-
-    /* Floating chat button */
-    .chat-button {
-      position: fixed;
-      bottom: 25px;
-      right: 25px;
-      width: 60px;
-      height: 60px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #7a00ff, #b800ff);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      cursor: pointer;
-      box-shadow: 0 0 20px rgba(184, 0, 255, 0.6);
-      z-index: 1000;
-      transition: transform 0.2s ease;
-    }
-
-    .chat-button:hover {
-      transform: scale(1.1);
-    }
-
-    .chat-button span {
-      font-size: 30px;
-      color: white;
-    }
-
-    /* Chat window popup */
-    .chat-popup {
-      position: fixed;
-      bottom: 100px;
-      right: 30px;
-      width: 360px;
-      height: 520px;
-      background: #111;
-      border: 1px solid #333;
-      border-radius: 16px;
-      display: none;
-      flex-direction: column;
-      overflow: hidden;
-      box-shadow: 0 0 25px rgba(255, 255, 255, 0.1);
-      z-index: 1001;
-    }
-
-    /* Chat header */
-    .chat-header {
-      background: #7a00ff;
-      color: white;
-      text-align: center;
-      padding: 10px;
-      font-weight: bold;
-      font-size: 18px;
-    }
-
-    /* Chat messages area */
-    .chat-messages {
-      flex: 1;
-      padding: 10px;
-      overflow-y: auto;
-      background: #000;
-    }
-
-    /* Chat bubbles */
-    .message {
-      margin: 8px 0;
-      padding: 10px 14px;
-      border-radius: 14px;
-      max-width: 80%;
-      word-wrap: break-word;
-    }
-
-    .bot {
-      background: #222;
-      align-self: flex-start;
-    }
-
-    .user {
-      background: #7a00ff;
-      align-self: flex-end;
-    }
-
-    /* Input area */
-    .chat-input {
-      display: flex;
-      border-top: 1px solid #333;
-    }
-
-    .chat-input input {
-      flex: 1;
-      padding: 12px;
-      background: #111;
-      color: white;
-      border: none;
-      outline: none;
-    }
-
-    .chat-input button {
-      background: #7a00ff;
-      color: white;
-      border: none;
-      padding: 0 18px;
-      cursor: pointer;
-    }
-
-    .chat-input button:hover {
-      background: #9c33ff;
-    }
-
-    /* Responsive */
-    @media (max-width: 600px) {
-      .chat-popup {
-        width: 90%;
-        height: 75vh;
-        right: 5%;
-      }
-    }
+    body { margin: 0; background-color: #000; font-family: "Poppins", sans-serif; color: #fff; }
+    .chat-button { position: fixed; bottom: 25px; right: 25px; width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, #7a00ff, #b800ff); display: flex; justify-content: center; align-items: center; cursor: pointer; box-shadow: 0 0 20px rgba(184, 0, 255, 0.6); z-index: 1000; transition: transform 0.2s ease; }
+    .chat-button:hover { transform: scale(1.1); }
+    .chat-button span { font-size: 30px; color: white; }
+    .chat-popup { position: fixed; bottom: 100px; right: 30px; width: 360px; height: 520px; background: #111; border: 1px solid #333; border-radius: 16px; display: none; flex-direction: column; overflow: hidden; box-shadow: 0 0 25px rgba(255, 255, 255, 0.1); z-index: 1001; }
+    .chat-header { background: linear-gradient(135deg, #7a00ff, #b800ff); color: white; text-align: center; padding: 12px; font-weight: bold; font-size: 18px; display: flex; justify-content: space-between; align-items: center; }
+    .chat-messages { flex: 1; padding: 10px; overflow-y: auto; background: #000; display: flex; flex-direction: column; }
+    .message { margin: 8px 0; padding: 10px 14px; border-radius: 14px; max-width: 80%; word-wrap: break-word; line-height: 1.4; }
+    .bot { background: #222; align-self: flex-start; }
+    .user { background: #7a00ff; align-self: flex-end; }
+    .chat-input { display: flex; border-top: 1px solid #333; }
+    .chat-input input { flex: 1; padding: 12px; background: #111; color: white; border: none; outline: none; font-size: 14px; }
+    .chat-input button { background: #7a00ff; color: white; border: none; padding: 0 18px; cursor: pointer; font-size: 18px; }
+    .chat-input button:hover { background: #9c33ff; }
+    .typing-indicator span { height: 8px; width: 8px; margin: 0 2px; background-color: #777; display: inline-block; border-radius: 50%; animation: typing-anim 1.4s infinite ease-in-out both; }
+    .typing-indicator span:nth-child(1) { animation-delay: -0.32s; } .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+    @keyframes typing-anim { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
+    .bot-message-content pre { position: relative; background-color: #2d2d2d; border-radius: 0.5rem; padding: 1rem; font-size: 0.875rem; }
+    .copy-code-btn { position: absolute; top: 0.5rem; right: 0.5rem; background-color: #4a5568; color: white; border: none; border-radius: 0.25rem; padding: 0.25rem 0.5rem; font-size: 0.75rem; cursor: pointer; opacity: 0.7; }
+    @media (max-width: 400px) { .chat-popup { width: calc(100% - 20px); height: 75vh; right: 10px; bottom: 85px; } }
   </style>
 </head>
 <body>
-  <!-- Floating button -->
-  <div class="chat-button" id="chatButton">
-    <span>💬</span>
-  </div>
-
-  <!-- Popup chat window -->
+  <div class="chat-button" id="chatButton"><span>🤖</span></div>
   <div class="chat-popup" id="chatPopup">
-    <div class="chat-header">Humongous AI 🤖</div>
+    <div class="chat-header">Humongous AI</div>
     <div class="chat-messages" id="chatMessages"></div>
     <div class="chat-input">
       <input id="userInput" type="text" placeholder="Type your message..." />
-      <button id="sendBtn">Send</button>
+      <button id="sendBtn">➤</button>
     </div>
   </div>
-
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
   <script>
     const chatButton = document.getElementById("chatButton");
     const chatPopup = document.getElementById("chatPopup");
     const messages = document.getElementById("chatMessages");
     const input = document.getElementById("userInput");
     const sendBtn = document.getElementById("sendBtn");
-
     let ws;
 
-    // Toggle popup visibility
     chatButton.addEventListener("click", () => {
-      chatPopup.style.display = chatPopup.style.display === "flex" ? "none" : "flex";
-      if (!ws || ws.readyState !== WebSocket.OPEN) connectWebSocket();
+      const isOpening = chatPopup.style.display !== "flex";
+      chatPopup.style.display = isOpening ? "flex" : "none";
+      if (isOpening && (!ws || ws.readyState === WebSocket.CLOSED)) {
+        connectWebSocket();
+      }
     });
 
-    // Connect WebSocket
     function connectWebSocket() {
-      ws = new WebSocket(`wss://${window.location.host}/ws`);
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/ws`;
+      ws = new WebSocket(wsUrl);
 
+      ws.onopen = () => { console.log("WebSocket connected."); };
       ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        if (data.type === "chat") addMessage(data.message, "bot");
+          document.querySelector('.bot-thinking')?.remove();
+          const data = JSON.parse(event.data);
+          if (data.type === "chat") {
+              addMessage(data.message, "bot");
+          }
       };
-
-      ws.onclose = () => {
-        addMessage("🔌 Connection closed.", "bot");
-      };
+      ws.onclose = () => { addMessage("🔌 Connection lost. Please reopen the chat.", "bot"); };
+      ws.onerror = () => { addMessage("NETWORK ERROR", "bot"); };
     }
 
-    // Send user message
     sendBtn.addEventListener("click", sendMessage);
-    input.addEventListener("keypress", (e) => {
-      if (e.key === "Enter") sendMessage();
-    });
+    input.addEventListener("keypress", (e) => { if (e.key === "Enter") sendMessage(); });
 
     function sendMessage() {
       const text = input.value.trim();
-      if (!text) return;
-
+      if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
       addMessage(text, "user");
       ws.send(text);
       input.value = "";
+      showThinkingIndicator();
     }
 
-    // Add chat bubble
     function addMessage(text, sender) {
+      const msgWrapper = document.createElement('div');
+      msgWrapper.style.display = 'flex';
+      msgWrapper.style.justifyContent = sender === 'user' ? 'flex-end' : 'flex-start';
+      msgWrapper.style.width = '100%';
+      
       const msg = document.createElement("div");
-      msg.classList.add("message", sender);
-      msg.textContent = text;
-      messages.appendChild(msg);
+      msg.classList.add("message", sender, "bot-message-content");
+      
+      if (sender === 'bot') {
+        streamText(msg, text);
+      } else {
+        msg.textContent = text;
+      }
+      
+      msgWrapper.appendChild(msg);
+      messages.appendChild(msgWrapper);
       messages.scrollTop = messages.scrollHeight;
     }
-  </script>
-</body>
-</html>
+    
+    function showThinkingIndicator(){
+        const wrapper = document.createElement('div');
+        wrapper.style.display = 'flex';
+        wrapper.style.justifyContent = 'flex-start';
+        wrapper.style.width = '100%';
+        wrapper.classList.add('bot-thinking');
+        wrapper.innerHTML = `<div class="message bot"><div class="typing-indicator"><span></span><span></span><span></span></div></div>`;
+        messages.appendChild(wrapper);
+        messages.scrollTop = messages.scrollHeight;
+    }
+
+    function streamText(element, rawText) {
+        let words = rawText.split(/(\s+|```[\s\S]*?```)/g).filter(Boolean);
+        let i = 0;
+        const interval = setInterval(() => {
+            if (i < words.length) {
+                let part = words[i];
+                element.innerHTML += part.startsWith('
+http://googleusercontent.com/immersive_entry_chip/0
+The `intents.json` file is unchanged from the last massive version you were given, so you do not need to replace it.
