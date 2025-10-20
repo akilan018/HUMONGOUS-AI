@@ -1,0 +1,7 @@
+fastapi
+uvicorn[standard]
+Jinja2
+spacy==3.7.5
+​httpx
+python-dotenv
+starlette
