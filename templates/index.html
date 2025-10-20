@@ -47,7 +47,7 @@
     <div id="chat-container" class="card shadow-lg w-100 h-100 border-0 mx-auto d-flex flex-column">
         <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center p-3">
             <div class="d-flex align-items-center">
-                <i class="bi bi-robot fs-4 me-3 text-info"></i>
+                <svg class="me-3 text-info" width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zM8.5 12.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm7 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z" fill="currentColor" opacity="0.4"/><path d="M12 4a8 8 0 0 0-8 8h16a8 8 0 0 0-8-8z" fill="currentColor" opacity="0.6"/><path d="M12 13c-2.827 0-5.264 1.733-6.435 4.14A7.96 7.96 0 0 0 12 20a7.96 7.96 0 0 0 6.435-2.86A7.472 7.472 0 0 0 12 13z" fill="currentColor"/></svg>
                 <div>
                     <h1 class="h5 mb-0">Humongous AI</h1>
                     <div id="status" class="d-flex align-items-center gap-2 small opacity-75">
@@ -77,12 +77,5 @@
         document.addEventListener("DOMContentLoaded",()=>{connectWebSocket()}),chatForm.addEventListener("submit",e=>{e.preventDefault();const t=userInput.value.trim();if(!t||!socket||1!==socket.readyState)return;addMessage(t,"user"),socket.send(t),userInput.value="",showThinkingIndicator()}),clearChatBtn.addEventListener("click",()=>{chatBox.innerHTML="",addMessage("Chat cleared. Let's start a new conversation!","bot",!1),socket&&socket.close(),connectWebSocket()});
         function addMessage(e,t,o=!0){const n=document.createElement("div");n.className=`d-flex mb-3 ${o?"animate-fade-in-up":""}`;const c=document.createElement("div");c.className="message-bubble p-2 px-3 rounded-3 shadow-sm","user"===t?(n.classList.add("justify-content-end"),c.classList.add("bg-primary","text-white"),c.textContent=e):(n.classList.add("justify-content-start"),c.classList.add("bg-light","text-dark","bot-message-content"),streamText(c,e)),n.appendChild(c),chatBox.appendChild(n),chatBox.scrollTop=chatBox.scrollHeight}
         function streamText(e,t){let o=t.split(/(\s+|
-http://googleusercontent.com/immersive_entry_chip/1
-fastapi
-uvicorn[standard]
-Jinja2
-spacy==3.7.5
-httpx
-python-dotenv
-starlette
-[https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1.tar.gz](https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1.tar.gz)
+http://googleusercontent.com/immersive_entry_chip/0
+The `intents.json` file is unchanged from the last massive version you were given, so you do not need to replace it.
