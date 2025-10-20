@@ -1,7 +1,14 @@
+# Core Web Framework and Server
 fastapi
 uvicorn[standard]
 Jinja2
+
+# Natural Language Processing (NLP)
 spacy==3.7.5
-​httpx
+
+# API Calls and Environment Variables
+httpx
 python-dotenv
+
+# FastAPI Dependencies (good to have for stability)
 starlette
