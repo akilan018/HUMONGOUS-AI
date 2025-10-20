@@ -1,0 +1,248 @@
+{
+  "intents": [
+    {
+      "tag": "greeting",
+      "patterns": [
+        "Hi", "Hello", "Hey", "How are you", "What's up?", "Good day", "Good morning", "Good afternoon", "Yo", "is anyone there?", "start chat", "helo", "hi there", "howdy", "a pleasant day to you", "greetings", "whats good", "can you help me", "hows it going"
+      ],
+      "responses": [
+        "Hello! This is Humongous AI. How can I assist you today?",
+        "Hi there, I'm Humongous AI, an assistant created by Akilan S R. What can I do for you?",
+        "Greetings! Humongous AI at your service. How can I help?"
+      ]
+    },
+    {
+      "tag": "goodbye",
+      "patterns": [
+        "Bye", "See you later", "Goodbye", "Catch you later", "I have to go", "That's all for now", "Exit", "quit", "talk to you later", "I'm done", "end chat", "Gotta go", "cya", "I'm out"
+      ],
+      "responses": [
+        "Goodbye! Have a great day.",
+        "It was a pleasure assisting you. Come back soon!",
+        "Bye! Take care."
+      ]
+    },
+    {
+      "tag": "thanks",
+      "patterns": ["Thanks", "Thank you", "That's helpful", "Awesome, thanks", "Thanks for helping me", "appreciate it", "thankyou", "thx", "much appreciated", "thanks a lot", "thank you so much"],
+      "responses": ["You're welcome!", "Any time!", "My pleasure, on behalf of Humongous AI.", "Glad I could help! Is there anything else?"]
+    },
+    {
+      "tag": "creator",
+      "patterns": [
+        "Who created you?", "Who is your owner?", "Who made you?", "Who built this AI?", "Who is the developer?", "Your creator", "who programmed you", "who is your master"
+      ],
+      "responses": [
+        "I was created by the talented developer Akilan S R.",
+        "My creator is Akilan S R. He designed me to be a helpful assistant."
+      ]
+    },
+    {
+      "tag": "creator_details",
+      "patterns": [
+        "Tell me more about Akilan S R", "Who is Akilan S R?", "What does your creator do?", "More details about the developer please", "Tell me about your owner"
+      ],
+      "responses": [
+        "Akilan S R is a skilled software developer and AI enthusiast based in Madurai, known for creating intelligent applications like me. He specializes in building robust and user-friendly systems.",
+        "Akilan S R is the visionary developer behind Humongous AI. His passion for technology and artificial intelligence led to my creation."
+      ]
+    },
+    {
+      "tag": "who_are_you",
+      "patterns": [
+        "Who are you?", "What is your name?", "What are you?", "Tell me about yourself", "Identify yourself", "Are you a bot?", "Are you human?", "your identity", "what should I call you"
+      ],
+      "responses": [
+        "I am Humongous AI, a virtual assistant designed by Akilan S R to help you with your questions.",
+        "My name is Humongous AI. I'm a sophisticated AI program here to provide information and support."
+      ]
+    },
+    {
+      "tag": "capabilities",
+      "patterns": [
+        "What can you do?", "How can you help?", "What are your capabilities?", "What kind of questions can you answer?", "What is your purpose?", "tell me your features", "what services do you offer", "how do you work"
+      ],
+      "responses": [
+        "I can answer questions about our company's hours, policies, and products. I can also help with account issues, technical support, and even tell you a joke! What would you like to know?",
+        "My main purpose is to provide information about our services. I can help with topics like shipping, returns, payments, and much more. Just ask!"
+      ]
+    },
+    {
+      "tag": "compliment",
+      "patterns": [
+        "You are very smart", "You're a good bot", "That was helpful", "You are amazing", "Great job", "Well done", "you are awesome", "cool bot", "very impressive"
+      ],
+      "responses": [
+        "Thank you! I'm here to help.",
+        "I appreciate that! My creator, Akilan S R, trained me well.",
+        "Thank you for the compliment! It means a lot."
+      ]
+    },
+    {
+        "tag": "company_info",
+        "patterns": [
+            "Tell me about your company", "What is your mission?", "Are you hiring?", "I want to work for you", "company history", "job openings", "careers", "what does your company do", "who are your competitors"
+        ],
+        "responses": [
+            "We are a technology company focused on creating innovative AI solutions to help people. You can learn more on our 'About Us' page.",
+            "For career opportunities, please visit our 'Careers' page to see all open positions and apply."
+        ]
+    },
+    {
+      "tag": "hours",
+      "patterns": [
+        "What are your hours?", "When are you open?", "What time do you close?", "Tell me your business hours", "Are you open on Sundays?", "Working time", "Operating hours", "Are you available 24/7?", "when do you open tomorrow", "what is the closing time", "hours of operation", "store hours", "are you open now", "what is business timing", "explain the business timing", "give me details on your hours", "explain the business timing point by point"
+      ],
+      "responses": [
+        "Our business support hours are from 9 AM to 5 PM, Monday through Friday. As Humongous AI, I am available to chat anytime!"
+      ]
+    },
+    {
+      "tag": "location",
+      "patterns": [
+        "Where are you located?", "What is your address?", "Where is your main office?", "Find your physical store", "Company location", "do you have a branch near me", "what's the company address", "physical location", "where is your headquarters"
+      ],
+      "responses": [
+        "Our main office is located at 123 AI Lane, Tech City, 10101. We do not currently have physical retail locations."
+      ]
+    },
+    {
+      "tag": "origin",
+      "patterns": [
+        "Where were you created?", "Where are you from?", "Where is your server located?", "your origin"
+      ],
+      "responses": [
+        "I was developed in the beautiful city of Madurai, Tamil Nadu.",
+        "My code originates from Madurai, India, thanks to my creator, Akilan S R."
+      ]
+    },
+    {
+      "tag": "payments",
+      "patterns": [
+        "What payment methods do you accept?", "Can I pay with PayPal?", "Do you take credit cards?", "Is American Express accepted?", "How can I pay?", "What are the payment options?", "do u accept discover card", "billing options", "payment types", "can i use google pay", "paymet methods"
+      ],
+      "responses": [
+        "We accept all major credit cards (Visa, MasterCard, American Express), PayPal, and Apple Pay. For other methods, please check at checkout."
+      ]
+    },
+    {
+      "tag": "billing_issues",
+      "patterns": [
+        "I have a problem with my bill", "There's a charge I don't recognize", "double charge on my card", "billing error", "can you help with an invoice", "I was overcharged"
+      ],
+      "responses": [
+        "I'm sorry to hear there's an issue with your billing. For security, I can't access specific account details, but our support team can resolve this for you immediately. Please contact them at support@example.com with your account information.",
+        "For any billing inquiries or errors, please reach out to our dedicated support team. They have the secure tools to help you."
+      ]
+    },
+    {
+      "tag": "returns",
+      "patterns": [
+        "What is your return policy?", "How do I return an item?", "I need to send something back", "How long do I have for a refund?", "Tell me about refunds", "Can I exchange a product?", "return process", "exchange policy", "return policyy", "refund info", "how to get my money back", "what's the return window"
+      ],
+      "responses": [
+        "You can return any item within 30 days of purchase for a full refund, provided it is in its original condition. For exchanges, please contact our support team directly."
+      ]
+    },
+    {
+      "tag": "shipping",
+      "patterns": [
+        "Do you ship to other countries?", "Can you ship internationally?", "Do you deliver to Canada?", "Overseas shipping options", "How long does shipping take?", "Shipping costs", "delivery timeframes", "how much for shipping", "shippinng fees", "estimated delivery", "when will my order get here", "what are the shipping charges", "it is shipped", "which countries list 20", "give country name 20", "in america the project is delivered"
+      ],
+      "responses": [
+        "Yes, we ship to most countries worldwide. Shipping fees and delivery times vary by destination. You can see the final cost and estimated delivery date at checkout."
+      ]
+    },
+    {
+      "tag": "tracking",
+      "patterns": [
+        "How do I track my order?", "Where is my package?", "Can I see my order status?", "I need to track a shipment.", "Send me my tracking number", "order status check", "tracking info please", "where is my stuff"
+      ],
+      "responses": [
+        "You can track your order on our website's tracking page using your order number. If you've lost your number, our support team can help."
+      ]
+    },
+    {
+        "tag": "order_management",
+        "patterns": [
+            "I want to cancel my order", "Can I change my shipping address?", "Modify my order", "I need to add an item to my order", "cancel order", "change address", "update order details", "can I edit my order", "I made a mistake in my order"
+        ],
+        "responses": [
+            "For order modifications or cancellations, please contact our customer support team immediately with your order number. Actions can only be taken before the order has been shipped.",
+            "I can't make changes to orders directly, but our support team can help you if you contact them as soon as possible."
+        ]
+    },
+    {
+        "tag": "discounts",
+        "patterns": [
+            "Do you have any discounts?", "Is there a sale going on?", "Can I get a promo code?", "Are there any active coupons?", "discount codes", "special offers", "sale items", "any deals today", "coupon code"
+        ],
+        "responses": [
+            "You can find all of our current promotions and sales on the 'Deals' page of our website. New offers are added frequently!",
+            "I don't have access to unique promo codes, but all public offers are listed on our website."
+        ]
+    },
+    {
+        "tag": "technical_support",
+        "patterns": [
+            "My device is not working", "I'm having a technical issue", "The website is down", "I need help with troubleshooting", "Can you help me fix something?", "Error message", "the app is crashing", "my screen is frozen", "website bug", "page not loading", "something is broken", "I'm getting an error"
+        ],
+        "responses": [
+            "I can certainly try to help with technical issues. Could you please describe the problem in more detail?",
+            "For technical support, it's best to contact our specialized team at support@example.com, but I can assist with basic troubleshooting steps like clearing your cache and cookies."
+        ]
+    },
+    {
+        "tag": "account_issues",
+        "patterns": [
+            "I can't log in", "I forgot my password", "How do I reset my password?", "There's an issue with my account", "Update my personal information", "Change my email address", "login problem", "forgot user name", "my account is locked", "update payment info", "cannot access my account"
+        ],
+        "responses": [
+            "For account issues like a password reset, you can use the 'Forgot Password' link on the login page. For other issues, our support team will need to verify your identity.",
+            "I can help with general account questions. For security reasons, changes to personal information must be done through our secure portal or by contacting support."
+        ]
+    },
+    {
+      "tag": "privacy_policy",
+      "patterns": [
+        "What is your privacy policy?", "How do you handle my data?", "Is my information safe?", "data privacy", "gdpr compliance", "do you sell my data?"
+      ],
+      "responses": [
+        "We take your data security very seriously. You can read our full privacy policy at our website's /privacy page. We do not sell your personal information.",
+        "We are committed to protecting your privacy. Our policy, available on our website, details exactly how we handle and protect your data."
+      ]
+    },
+    {
+        "tag": "human_handoff",
+        "patterns": [
+            "I want to talk to a human", "Can I speak with an agent?", "Connect me to a person", "I need to talk to customer service", "speak to a representative", "is there a person I can talk to", "transfer to human", "real person please", "I need more help"
+        ],
+        "responses": [
+            "I understand you'd like to speak with a human agent. Let me connect you. Please hold on.",
+            "Of course. I can transfer you to one of our support representatives now."
+        ]
+    },
+    {
+      "tag": "jokes",
+      "patterns": [
+        "Tell me a joke", "Make me laugh", "Do you know any jokes?", "joke please", "tell me something funny", "can you tell jokes", "another joke"
+      ],
+      "responses": [
+        "Why don't scientists trust atoms? Because they make up everything!",
+        "What do you call a fake noodle? An Impasta!",
+        "I told my computer I needed a break, and now it won’t stop sending me Kit-Kat ads."
+      ]
+    },
+    {
+      "tag": "fallback",
+      "patterns": [
+        ""
+      ],
+      "responses": [
+        "I'm sorry, I didn't quite understand that. As Humongous AI, I'm still learning. Could you please rephrase?",
+        "My apologies, I can't seem to find an answer to that. Can you ask in a different way?",
+        "I'm not sure how to help with that. Could you try asking another question?"
+      ]
+    }
+  ]
+}
