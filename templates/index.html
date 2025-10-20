@@ -1,1 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Humongous AI Assistant</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            padding: 0 !important; margin: 0 !important;
+            background-image: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('https://i.imgur.com/fMy6J4h.jpeg');
+            background-size: cover; background-position: center; font-family: 'Inter', sans-serif; overflow: hidden;
+        }
+        .chat-container {
+            height: 100vh !important; max-width: 100% !important; border-radius: 0 !important; 
+            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+            background-color: rgba(255, 255, 255, 0.9);
+        }
+        @media (min-width: 768px) {
+            body { padding: 1.5rem !important; }
+            .chat-container { height: 90vh !important; max-width: 800px !important; border-radius: 1rem !important; }
+        }
+        #chat-box::-webkit-scrollbar { width: 8px; }
+        #chat-box::-webkit-scrollbar-thumb { background: #ced4da; border-radius: 4px; }
+        .message-bubble { max-width: 85%; }
+        .status-dot { width: 8px; height: 8px; background-color: #198754; border-radius: 50%; animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        @keyframes fade-in-up { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in-up { animation: fade-in-up 0.5s ease-out forwards; }
+    </style>
+</head>
+<body class="d-block"> 
+    <div id="chat-container" class="card shadow-lg w-100 h-100 border-0 mx-auto">
+        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center p-3">
+            <div class="d-flex align-items-center">
+                <svg class="me-3 text-info" width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zM8.5 12.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm7 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z" fill="currentColor" opacity="0.4"/><path d="M12 4a8 8 0 0 0-8 8h16a8 8 0 0 0-8-8z" fill="currentColor" opacity="0.6"/><path d="M12 13c-2.827 0-5.264 1.733-6.435 4.14A7.96 7.96 0 0 0 12 20a7.96 7.96 0 0 0 6.435-2.86A7.472 7.472 0 0 0 12 13z" fill="currentColor"/></svg>
+                <div>
+                    <h1 class="h5 mb-0">Humongous AI</h1>
+                    <div id="status" class="d-flex align-items-center gap-2 small opacity-75">
+                        <div class="status-dot d-none"></div>
+                        <span>Connecting...</span>
+                    </div>
+                </div>
+            </div>
+            <!-- Simplified Header - Only Clear button -->
+            <button id="clear-chat-btn" title="Clear Chat" class="btn btn-outline-light btn-sm rounded-pill"><i class="bi bi-trash"></i></button>
+        </div>
+        <div id="chat-box" class="card-body p-4 overflow-y-auto bg-light bg-opacity-75"></div>
+        <div class="card-footer p-3 bg-white bg-opacity-75">
+            <form id="chat-form">
+                <div class="input-group">
+                    <input type="text" id="user-input" placeholder="Ask Humongous AI anything..." class="form-control border-2 rounded-start-pill" autocomplete="off" disabled>
+                    <button type="submit" class="btn btn-primary rounded-end-pill px-3"><i class="bi bi-send-fill"></i></button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const chatForm=document.getElementById("chat-form"),userInput=document.getElementById("user-input"),chatBox=document.getElementById("chat-box"),statusDiv=document.getElementById("status"),statusDot=statusDiv.querySelector(".status-dot"),statusText=statusDiv.querySelector("span"),clearChatBtn=document.getElementById("clear-chat-btn");let socket;
+        function connectWebSocket(){const e=window.location.protocol==="https:"?"wss:":"ws:",t=`${e}//${window.location.host}/ws`;socket=new WebSocket(t),socket.onopen=()=>{statusText.textContent="Online",statusDot.classList.remove("d-none"),userInput.disabled=!1},socket.onmessage=e=>{const t=JSON.parse(e.data);"chat"===t.type&&(document.querySelector(".bot-thinking")?.remove(),addMessage(t.message,"bot"))},socket.onclose=()=>{statusText.textContent="Offline - Refresh",statusDot.classList.add("d-none")},socket.onerror=e=>{console.error("WebSocket Error:",e),statusText.textContent="Connection Error"}}
+        document.addEventListener("DOMContentLoaded",()=>{connectWebSocket()}),chatForm.addEventListener("submit",e=>{e.preventDefault();const t=userInput.value.trim();if(!t||!socket||1!==socket.readyState)return;addMessage(t,"user"),socket.send(t),userInput.value="",showThinkingIndicator()}),clearChatBtn.addEventListener("click",()=>{chatBox.innerHTML="",addMessage("Chat cleared. Let's start a new conversation!","bot"),socket&&socket.close(),connectWebSocket()});
+        function addMessage(e,t,o=!0){const n=document.createElement("div");n.className=`d-flex mb-3 ${o?"animate-fade-in-up":""}`;const c=document.createElement("div");c.className="message-bubble p-2 px-3 rounded-3 shadow-sm","user"===t?(n.classList.add("justify-content-end"),c.classList.add("bg-primary","text-white"),c.textContent=e):(n.classList.add("justify-content-start"),c.classList.add("bg-light","text-dark","bot-message-content"),streamText(c,e)),n.appendChild(c),chatBox.appendChild(n),chatBox.scrollTop=chatBox.scrollHeight}
+        function streamText(e,t){let o=t.split(/(\s+|
+http://googleusercontent.com/immersive_entry_chip/1
+The `intents.json` file is unchanged from the last massive version you were given, so you do not need to replace it.
 
