@@ -39,8 +39,6 @@
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
         @keyframes fade-in-up { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade-in-up { animation: fade-in-up 0.5s ease-out forwards; }
-        .bot-message-content pre { position: relative; background-color: #2d2d2d; border-radius: 0.5rem; padding: 1rem; font-size: 0.875rem; }
-        .copy-code-btn { position: absolute; top: 0.5rem; right: 0.5rem; background-color: #4a5568; color: white; border: none; border-radius: 0.25rem; padding: 0.25rem 0.5rem; font-size: 0.75rem; opacity: 0.7; }
     </style>
 </head>
 <body class="d-block"> 
@@ -68,14 +66,13 @@
             </form>
         </div>
     </div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const chatForm=document.getElementById("chat-form"),userInput=document.getElementById("user-input"),chatBox=document.getElementById("chat-box"),statusDiv=document.getElementById("status"),statusDot=statusDiv.querySelector(".status-dot"),statusText=statusDiv.querySelector("span"),clearChatBtn=document.getElementById("clear-chat-btn");let socket;
         function connectWebSocket(){const e=window.location.protocol==="https:"?"wss:":"ws:",t=`${e}//${window.location.host}/ws`;socket=new WebSocket(t),socket.onopen=()=>{statusText.textContent="Online",statusDot.classList.remove("d-none"),userInput.disabled=!1},socket.onmessage=e=>{const t=JSON.parse(e.data);"chat"===t.type&&(document.querySelector(".bot-thinking")?.remove(),addMessage(t.message,"bot"))},socket.onclose=()=>{statusText.textContent="Offline - Refresh",statusDot.classList.add("d-none")},socket.onerror=e=>{console.error("WebSocket Error:",e),statusText.textContent="Connection Error"}}
         document.addEventListener("DOMContentLoaded",()=>{connectWebSocket()}),chatForm.addEventListener("submit",e=>{e.preventDefault();const t=userInput.value.trim();if(!t||!socket||1!==socket.readyState)return;addMessage(t,"user"),socket.send(t),userInput.value="",showThinkingIndicator()}),clearChatBtn.addEventListener("click",()=>{chatBox.innerHTML="",addMessage("Chat cleared. Let's start a new conversation!","bot",!1),socket&&socket.close(),connectWebSocket()});
-        function addMessage(e,t,o=!0){const n=document.createElement("div");n.className=`d-flex mb-3 ${o?"animate-fade-in-up":""}`;const c=document.createElement("div");c.className="message-bubble p-2 px-3 rounded-3 shadow-sm","user"===t?(n.classList.add("justify-content-end"),c.classList.add("bg-primary","text-white"),c.textContent=e):(n.classList.add("justify-content-start"),c.classList.add("bg-light","text-dark","bot-message-content"),streamText(c,e)),n.appendChild(c),chatBox.appendChild(n),chatBox.scrollTop=chatBox.scrollHeight}
-        function streamText(e,t){let o=t.split(/(\s+|
-http://googleusercontent.com/immersive_entry_chip/0
-The `intents.json` file is unchanged from the last massive version you were given, so you do not need to replace it.
+        function addMessage(e,t,o=!0){const n=document.createElement("div");n.className=`d-flex mb-3 ${o?"animate-fade-in-up":""}`;n.innerHTML="user"===t?`<div class="ms-auto message-bubble bg-primary text-white p-2 px-3 rounded-3 shadow-sm">${e}</div>`:`<div class="message-bubble bg-light text-dark p-2 px-3 rounded-3 shadow-sm bot-message-content">${marked.parse(e)}</div>`;chatBox.appendChild(n);chatBox.scrollTop=chatBox.scrollHeight}
+        function showThinkingIndicator(){const e=document.createElement("div");e.className="d-flex justify-content-start mb-3 bot-thinking";const t=userInput.value.length>30||userInput.value.toLowerCase().includes("what is")?'<small class="text-muted">✨ Accessing extended knowledge base...</small>':'<div class="typing-indicator" style="display:flex;align-items:center;"><span></span><span style="animation-delay:0.2s"></span><span style="animation-delay:0.4s"></span></div>';e.innerHTML=`<div class="message-bubble bg-light text-dark p-3 rounded-3 shadow-sm">${t}</div>`;const o=document.createElement("style");o.textContent="@keyframes typing-anim{0%,100%{transform:scaleY(.2)}20%{transform:scaleY(1)}80%{transform:scaleY(.2)}} .typing-indicator span{height:10px;width:4px;margin:0 1px;background-color:#6c757d;display:block;border-radius:2px;animation:typing-anim 1s infinite ease-in-out}",document.head.appendChild(o),chatBox.appendChild(e),chatBox.scrollTop=chatBox.scrollHeight}
+    </script>
+</body>
+</html>
