@@ -4,7 +4,7 @@
 import uuid
 import httpx
 import os
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from nlp_engine import NlpEngine
@@ -38,7 +38,6 @@ except Exception as e:
 async def call_gemini_api(prompt: str):
     load_dotenv()
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-
     if not GEMINI_API_KEY:
         return "**Error:** The `GEMINI_API_KEY` is not configured on the server."
     
@@ -82,10 +81,10 @@ async def websocket_endpoint(websocket: WebSocket):
             intent_tag = matched_intent.get('tag', 'unknown') if matched_intent else 'unknown'
             
             COMPLEX_INTENTS = [
-                'creator', 'creator_details', 'who_are_you', 'capabilities', 'company_info',
+                'creator_details', 'who_are_you', 'capabilities', 'company_info',
                 'hours', 'location', 'origin', 'payments', 'returns', 'shipping', 'tracking',
                 'order_management', 'discounts', 'technical_support', 'account_issues',
-                'privacy_policy', 'product_info', 'feedback'
+                'privacy_policy', 'product_info', 'billing_issues', 'feedback'
             ]
             
             if intent_tag in COMPLEX_INTENTS:
