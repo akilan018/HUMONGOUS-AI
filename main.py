@@ -1,5 +1,4 @@
 # main.py
-# FINAL ULTIMATE VERSION: No database, Gemini for business questions, stable deployment.
 
 import uuid
 import httpx
