@@ -42,7 +42,6 @@
       --quick-question-hover: var(--quick-question-hover-dark);
     }
 
-    /* ✅ Fullscreen layout */
     html, body {
       margin: 0;
       padding: 0;
@@ -212,8 +211,10 @@
 
     #userInput:focus { border-color: var(--primary-color); }
 
+    /* ✨ Stylish Send Button */
     #sendBtn {
-      background: var(--primary-color);
+      background: linear-gradient(135deg, #6a0dad, #9b4dff);
+      box-shadow: 0 0 8px rgba(155, 77, 255, 0.6);
       color: #fff;
       border: none;
       border-radius: 50%;
@@ -225,12 +226,12 @@
       align-items: center;
       justify-content: center;
       font-size: 1.2rem;
-      transition: transform 0.2s, background 0.3s;
+      transition: all 0.3s ease;
     }
 
     #sendBtn:hover {
-      transform: scale(1.05);
-      background-color: #8a2be2;
+      transform: scale(1.1);
+      box-shadow: 0 0 15px rgba(155, 77, 255, 0.8);
     }
 
     @keyframes fadeIn {
@@ -238,7 +239,6 @@
       to { opacity: 1; transform: translateY(0); }
     }
 
-    /* ✨ Sparkle effect */
     .sparkle {
       position: fixed;
       width: 10px;
@@ -269,7 +269,7 @@
       <div class="header-actions">
         <div class="status">
           <div id="statusDot" class="status-dot offline"></div>
-          <span id="statusText">Connecting...</span>
+          <span id="statusText">Offline</span>
         </div>
         <button id="themeToggleBtn" class="header-btn">☀️</button>
         <button id="clearChatBtn" class="header-btn">🗑️</button>
@@ -280,8 +280,8 @@
     <div id="quickQuestions" class="quick-questions-container"></div>
 
     <div class="chat-input-area">
-      <input id="userInput" type="text" placeholder="Type your message..." autocomplete="off" disabled />
-      <button id="sendBtn" disabled>➤</button>
+      <input id="userInput" type="text" placeholder="Type your message..." autocomplete="off" />
+      <button id="sendBtn">➤</button>
     </div>
   </div>
 
@@ -289,101 +289,17 @@
     const chatMessages = document.getElementById("chatMessages");
     const userInput = document.getElementById("userInput");
     const sendBtn = document.getElementById("sendBtn");
-    const statusDot = document.getElementById("statusDot");
-    const statusText = document.getElementById("statusText");
-    const quickQuestionsContainer = document.getElementById("quickQuestions");
-    const themeToggleBtn = document.getElementById("themeToggleBtn");
-    const clearChatBtn = document.getElementById("clearChatBtn");
-    const htmlEl = document.documentElement;
-    let socket;
-
-    const QUICK_QUESTIONS = ["Business Hours", "Pricing", "Support Contact", "Return Policy", "Shipping Info", "Account Help"];
-
-    function setTheme(theme) {
-      htmlEl.setAttribute('data-theme', theme);
-      localStorage.setItem('theme', theme);
-      themeToggleBtn.textContent = theme === 'dark' ? '☀️' : '🌙';
-    }
-
-    function showQuickQuestions() {
-      quickQuestionsContainer.style.display = 'block';
-      quickQuestionsContainer.innerHTML = `<p class="quick-questions-title">Quick questions:</p>`;
-      const grid = document.createElement('div');
-      grid.className = 'quick-questions-grid';
-      QUICK_QUESTIONS.forEach(q => {
-        const btn = document.createElement('button');
-        btn.className = 'quick-question';
-        btn.textContent = q;
-        btn.onclick = () => {
-          userInput.value = q;
-          sendMessage();
-        };
-        grid.appendChild(btn);
-      });
-      quickQuestionsContainer.appendChild(grid);
-    }
-
-    function connectWebSocket() {
-      statusText.textContent = "Connecting...";
-      statusDot.className = 'status-dot offline';
-      userInput.disabled = true;
-      sendBtn.disabled = true;
-
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}/ws`;
-      socket = new WebSocket(wsUrl);
-
-      socket.onopen = () => {
-        statusText.textContent = "Online";
-        statusDot.className = 'status-dot online';
-        userInput.disabled = false;
-        sendBtn.disabled = false;
-      };
-
-      socket.onmessage = (event) => {
-        document.querySelector('.bot-thinking')?.remove();
-        const data = JSON.parse(event.data);
-        if (data.type === "chat") addMessage(data.message, "bot");
-      };
-
-      socket.onclose = () => {
-        statusText.textContent = "Offline";
-        statusDot.className = 'status-dot offline';
-        userInput.disabled = true;
-        sendBtn.disabled = true;
-        setTimeout(connectWebSocket, 3000);
-      };
-    }
-
-    document.addEventListener("DOMContentLoaded", () => {
-      const savedTheme = localStorage.getItem('theme') || 'light';
-      setTheme(savedTheme);
-      connectWebSocket();
-      showQuickQuestions();
-    });
-
-    themeToggleBtn.addEventListener("click", () => {
-      const newTheme = htmlEl.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-      setTheme(newTheme);
-    });
 
     sendBtn.addEventListener("click", sendMessage);
     userInput.addEventListener("keypress", (e) => { if (e.key === "Enter") sendMessage(); });
 
-    clearChatBtn.addEventListener("click", () => {
-      chatMessages.innerHTML = "";
-      showQuickQuestions();
-      addMessage("Chat cleared. How can I help?", "bot");
-    });
-
     function sendMessage() {
       const text = userInput.value.trim();
-      if (!text || !socket || socket.readyState !== WebSocket.OPEN) return;
+      if (!text) return;
       addMessage(text, "user");
-      socket.send(text);
       userInput.value = "";
-      quickQuestionsContainer.style.display = 'none';
-      showThinkingIndicator();
+      // Fake bot reply
+      setTimeout(() => addMessage("You said: " + text, "bot"), 600);
     }
 
     function addMessage(text, sender) {
@@ -391,8 +307,8 @@
       wrapper.className = `message-wrapper ${sender}-message`;
       const bubble = document.createElement("div");
       bubble.className = `message-bubble ${sender}`;
-      bubble.innerHTML = sender === 'bot' ? marked.parse(text) : text;
-      const timestamp = document.createElement('div');
+      bubble.textContent = text;
+      const timestamp = document.createElement("div");
       timestamp.className = 'timestamp';
       timestamp.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       wrapper.appendChild(bubble);
@@ -401,15 +317,7 @@
       chatMessages.scrollTop = chatMessages.scrollHeight;
     }
 
-    function showThinkingIndicator() {
-      const wrapper = document.createElement('div');
-      wrapper.className = 'message-wrapper bot-message bot-thinking';
-      wrapper.innerHTML = `<div class="message-bubble bot"><div class="typing-indicator"><span></span><span></span><span></span></div></div>`;
-      chatMessages.appendChild(wrapper);
-      chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
-
-    // ✨ Sparkle effect
+    // ✨ Sparkle Effect
     function createSparkle(x, y) {
       const sparkle = document.createElement('div');
       sparkle.className = 'sparkle';
