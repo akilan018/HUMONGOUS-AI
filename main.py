@@ -18,7 +18,7 @@ GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 # --- MONGODB CONFIG ---
-MONGO_URI = os.getenv("MONGO_URI", "mongodb+srv://akilan200518_db_user:KPtCEpdfiXOYqCm9@cluster3.3rpkllm.mongodb.net/humongous_ai?retryWrites=true&w=majority&appName=Cluster3")
+MONGO_URI = os.getenv("MONGO_URI")
 
 # --- INITIALIZATION ---
 app = FastAPI()
