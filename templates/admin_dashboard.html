@@ -7,12 +7,12 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-body { background:#1c1c1c; color:white; font-family:Poppins,sans-serif; }
-.card { background:#2a2a2a; border:none; border-radius:1rem; padding:1.5rem; box-shadow:0 0 10px rgba(255,255,255,0.05); }
-.table { color:white; }
-canvas { background:#222; border-radius:1rem; padding:1rem; }
-.btn-refresh { background:#007bff; color:white; border:none; padding:0.5rem 1rem; border-radius:0.5rem; }
-.btn-refresh:hover { background:#0056b3; }
+body { background:#111; color:#fff; font-family:Poppins,sans-serif; }
+.card { background:#1c1c1c; border:none; border-radius:1rem; padding:1.5rem; margin-bottom:1.2rem; }
+h2 { color:#0ff; }
+.table-dark th, .table-dark td { color:#fff; }
+.btn-refresh { background:#007bff; color:white; border:none; padding:0.6rem 1.2rem; border-radius:0.5rem; }
+canvas { max-height:320px; }
 </style>
 </head>
 <body>
@@ -31,101 +31,77 @@ canvas { background:#222; border-radius:1rem; padding:1rem; }
     <div class="col-md-4"><div class="card"><h5>Fallback Rate</h5><h3 id="fallbackRate">0%</h3></div></div>
   </div>
 
-  <div class="row mb-4">
-    <div class="col-md-6">
-      <div class="card">
-        <h5>Messages Over Time</h5>
-        <canvas id="messagesChart"></canvas>
-      </div>
-    </div>
-    <div class="col-md-6">
-      <div class="card">
-        <h5>Top Intents</h5>
-        <canvas id="intentsChart"></canvas>
-      </div>
-    </div>
+  <div class="card">
+    <h5>Messages Over Time</h5>
+    <canvas id="msgChart"></canvas>
   </div>
 
   <div class="card">
-    <h5>Recent Chat Logs</h5>
+    <h5>All Chat Logs</h5>
     <table class="table table-dark table-striped mt-3">
-      <thead><tr><th>Timestamp</th><th>User Message</th><th>Intent</th></tr></thead>
-      <tbody id="logs"><tr><td colspan="3">Loading...</td></tr></tbody>
+      <thead>
+        <tr><th>Timestamp</th><th>Sender</th><th>Message</th><th>Intent</th></tr>
+      </thead>
+      <tbody id="logs"><tr><td colspan="4">Loading...</td></tr></tbody>
     </table>
   </div>
 </div>
 
 <script>
-let messagesChart, intentsChart;
-
 async function loadStats() {
-  const res = await fetch("/api/admin/stats");
-  const data = await res.json();
+  try {
+    const res = await fetch("/api/admin/stats");
+    if (!res.ok) throw new Error("Failed to fetch stats");
+    const data = await res.json();
 
-  // Update summary cards
-  document.getElementById("totalMessages").textContent = data.total_messages;
-  document.getElementById("uniqueSessions").textContent = data.unique_sessions;
-  document.getElementById("fallbackRate").textContent = data.fallback_rate + "%";
+    document.getElementById("totalMessages").textContent = data.total_messages;
+    document.getElementById("uniqueSessions").textContent = data.unique_sessions;
+    document.getElementById("fallbackRate").textContent = data.fallback_rate + "%";
 
-  // Update chat logs
-  const tbody = document.getElementById("logs");
-  tbody.innerHTML = "";
-  data.recent_logs.forEach(l => {
-    const row = `<tr><td>${l.timestamp}</td><td>${l.message}</td><td>${l.intent}</td></tr>`;
-    tbody.innerHTML += row;
-  });
+    // Table
+    const tbody = document.getElementById("logs");
+    tbody.innerHTML = "";
+    data.recent_logs.forEach(l => {
+      const row = `<tr>
+        <td>${l.timestamp}</td>
+        <td>${l.sender}</td>
+        <td>${l.message}</td>
+        <td>${l.intent || "-"}</td>
+      </tr>`;
+      tbody.innerHTML += row;
+    });
 
-  // ---- Charts ----
-  // Messages per day (simulated aggregation)
-  const dateCounts = {};
-  data.recent_logs.forEach(l => {
-    const date = l.timestamp.split("T")[0];
-    dateCounts[date] = (dateCounts[date] || 0) + 1;
-  });
-  const labels = Object.keys(dateCounts);
-  const values = Object.values(dateCounts);
+    // Chart
+    const countByDate = {};
+    data.recent_logs.forEach(l => {
+      const date = l.timestamp?.split(" ")[0];
+      countByDate[date] = (countByDate[date] || 0) + 1;
+    });
+    const labels = Object.keys(countByDate).reverse();
+    const counts = Object.values(countByDate).reverse();
 
-  // Destroy old chart before creating new
-  if (messagesChart) messagesChart.destroy();
-  messagesChart = new Chart(document.getElementById("messagesChart"), {
-    type: "line",
-    data: {
-      labels,
-      datasets: [{
+    const ctx = document.getElementById("msgChart").getContext("2d");
+    if (window.msgChart) window.msgChart.destroy();
+    window.msgChart = new Chart(ctx, {
+      type: "line",
+      data: { labels, datasets: [{
         label: "Messages per Day",
-        data: values,
-        borderColor: "#4bc0c0",
-        backgroundColor: "rgba(75,192,192,0.2)",
-        tension: 0.3
-      }]
-    },
-    options: { plugins: { legend: { labels: { color: "white" } } }, scales: { x: { ticks: { color: "white" } }, y: { ticks: { color: "white" } } } }
-  });
+        data: counts,
+        borderColor: "#0ff",
+        backgroundColor: "rgba(0,255,255,0.2)",
+        tension: 0.3,
+        fill: true
+      }]},
+      options: { scales: { y: { beginAtZero: true } } }
+    });
 
-  // Intents distribution (Pie)
-  const intentCounts = {};
-  data.recent_logs.forEach(l => {
-    intentCounts[l.intent] = (intentCounts[l.intent] || 0) + 1;
-  });
-  const intentLabels = Object.keys(intentCounts);
-  const intentValues = Object.values(intentCounts);
-
-  if (intentsChart) intentsChart.destroy();
-  intentsChart = new Chart(document.getElementById("intentsChart"), {
-    type: "pie",
-    data: {
-      labels: intentLabels,
-      datasets: [{
-        data: intentValues,
-        backgroundColor: ["#36a2eb", "#ff6384", "#ffcd56", "#4bc0c0", "#9966ff"]
-      }]
-    },
-    options: { plugins: { legend: { labels: { color: "white" } } } }
-  });
+  } catch (err) {
+    console.error(err);
+    alert("Failed to load dashboard data");
+  }
 }
 
 loadStats();
-setInterval(loadStats, 15000); // auto refresh every 15s
 </script>
 </body>
 </html>
