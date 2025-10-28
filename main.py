@@ -1,3 +1,4 @@
+
 import os
 import uuid
 import httpx
@@ -22,7 +23,7 @@ from nlp_engine import NlpEngine
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-latest:generateContent"
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 MONGO_URI = os.getenv("MONGO_URI")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin")
 
 # ----------------------------
 # FASTAPI SETUP
@@ -91,14 +92,15 @@ def log_interaction(session_id, sender, message, response=None, intent=None):
     except Exception as e:
         print(f"⚠️ Failed to log chat: {e}")
 
-def get_all_chat_logs(limit=1000) -> List[Dict[str, Any]]:
-    docs = (
-        chat_collection.find().sort("timestamp", -1).limit(limit)
+def get_all_chat_logs(limit=0) -> List[Dict[str, Any]]:
+    # 0 = no limit (return all)
+    cursor = (
+        chat_collection.find().sort("timestamp", -1).limit(limit if limit > 0 else 100000)
         if chat_collection
         else []
     )
     logs = []
-    for d in docs:
+    for d in cursor:
         d.pop("_id", None)
         ts = d.get("timestamp")
         if isinstance(ts, datetime):
@@ -136,16 +138,17 @@ async def admin_page(request: Request, password: str):
 
 @app.get("/api/admin/stats")
 async def admin_stats():
-    logs = get_all_chat_logs(limit=2000)
+    logs = get_all_chat_logs(limit=0)  # return all messages
     total = len(logs)
     unique_sessions = len(set(l["session_id"] for l in logs))
     fallback_count = sum(1 for l in logs if l.get("intent") in ["fallback", "unknown"])
     fallback_rate = round((fallback_count / total) * 100, 2) if total else 0.0
+
     return JSONResponse({
         "total_messages": total,
         "unique_sessions": unique_sessions,
         "fallback_rate": fallback_rate,
-        "recent_logs": logs[:10]
+        "recent_logs": logs  # full logs for admin dashboard
     })
 
 # ----------------------------
