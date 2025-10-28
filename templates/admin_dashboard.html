@@ -1,157 +1,131 @@
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="dark">
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Humongous AI Dashboard</title>
-
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-  <style>
-    body {
-      font-family: 'Poppins', sans-serif;
-      background-color: var(--bs-body-bg);
-      color: var(--bs-body-color);
-      transition: background-color 0.4s, color 0.4s;
-    }
-    .card {
-      border-radius: 20px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-    }
-    .table td, .table th {
-      vertical-align: middle;
-    }
-    .theme-switch {
-      position: fixed;
-      top: 1rem;
-      right: 1rem;
-      z-index: 1000;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Humongous AI Dashboard</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+body { background:#1c1c1c; color:white; font-family:Poppins,sans-serif; }
+.card { background:#2a2a2a; border:none; border-radius:1rem; padding:1.5rem; box-shadow:0 0 10px rgba(255,255,255,0.05); }
+.table { color:white; }
+canvas { background:#222; border-radius:1rem; padding:1rem; }
+.btn-refresh { background:#007bff; color:white; border:none; padding:0.5rem 1rem; border-radius:0.5rem; }
+.btn-refresh:hover { background:#0056b3; }
+</style>
 </head>
 <body>
-
-  <div class="container my-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-      <h2 class="fw-bold">Humongous AI Dashboard</h2>
-      <button id="refreshBtn" class="btn btn-primary">🔄 Refresh</button>
+<div class="container py-5">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2>Humongous AI Dashboard</h2>
+      <p>Analytics for Akilan S R</p>
     </div>
-    <h6 class="text-secondary mb-4">Analytics for <strong>Akilan S R</strong></h6>
+    <button class="btn-refresh" onclick="loadStats()">🔄 Refresh</button>
+  </div>
 
-    <div class="row text-center mb-4">
-      <div class="col-md-4 mb-3">
-        <div class="card p-3">
-          <h5>Total Messages</h5>
-          <h2 id="totalMessages">0</h2>
-        </div>
-      </div>
-      <div class="col-md-4 mb-3">
-        <div class="card p-3">
-          <h5>Unique Sessions</h5>
-          <h2 id="uniqueSessions">0</h2>
-        </div>
-      </div>
-      <div class="col-md-4 mb-3">
-        <div class="card p-3">
-          <h5>Fallback Rate</h5>
-          <h2 id="fallbackRate">0%</h2>
-        </div>
+  <div class="row text-center mb-4">
+    <div class="col-md-4"><div class="card"><h5>Total Messages</h5><h3 id="totalMessages">0</h3></div></div>
+    <div class="col-md-4"><div class="card"><h5>Unique Sessions</h5><h3 id="uniqueSessions">0</h3></div></div>
+    <div class="col-md-4"><div class="card"><h5>Fallback Rate</h5><h3 id="fallbackRate">0%</h3></div></div>
+  </div>
+
+  <div class="row mb-4">
+    <div class="col-md-6">
+      <div class="card">
+        <h5>Messages Over Time</h5>
+        <canvas id="messagesChart"></canvas>
       </div>
     </div>
-
-    <div class="card mb-4 p-4">
-      <h5>Success Rate</h5>
-      <canvas id="successChart" height="120"></canvas>
-    </div>
-
-    <div class="card p-4">
-      <h5>Recent Chat Logs</h5>
-      <div class="table-responsive">
-        <table class="table table-striped align-middle mt-3">
-          <thead>
-            <tr>
-              <th>Timestamp</th>
-              <th>User Message</th>
-              <th>Intent</th>
-            </tr>
-          </thead>
-          <tbody id="chatLogs">
-            <tr><td colspan="3" class="text-center">Loading...</td></tr>
-          </tbody>
-        </table>
+    <div class="col-md-6">
+      <div class="card">
+        <h5>Top Intents</h5>
+        <canvas id="intentsChart"></canvas>
       </div>
     </div>
   </div>
 
-  <div class="form-check form-switch theme-switch">
-    <input class="form-check-input" type="checkbox" role="switch" id="themeToggle">
-    <label class="form-check-label" for="themeToggle">🌙</label>
+  <div class="card">
+    <h5>Recent Chat Logs</h5>
+    <table class="table table-dark table-striped mt-3">
+      <thead><tr><th>Timestamp</th><th>User Message</th><th>Intent</th></tr></thead>
+      <tbody id="logs"><tr><td colspan="3">Loading...</td></tr></tbody>
+    </table>
   </div>
+</div>
 
-  <script>
-    const themeToggle = document.getElementById('themeToggle');
-    const html = document.documentElement;
+<script>
+let messagesChart, intentsChart;
 
-    themeToggle.addEventListener('change', () => {
-      if (themeToggle.checked) {
-        html.setAttribute('data-bs-theme', 'light');
-      } else {
-        html.setAttribute('data-bs-theme', 'dark');
-      }
-    });
+async function loadStats() {
+  const res = await fetch("/api/admin/stats");
+  const data = await res.json();
 
-    const ctx = document.getElementById('successChart').getContext('2d');
-    let successChart;
+  // Update summary cards
+  document.getElementById("totalMessages").textContent = data.total_messages;
+  document.getElementById("uniqueSessions").textContent = data.unique_sessions;
+  document.getElementById("fallbackRate").textContent = data.fallback_rate + "%";
 
-    async function loadDashboard() {
-      const res = await fetch('/api/admin/stats');
-      const data = await res.json();
+  // Update chat logs
+  const tbody = document.getElementById("logs");
+  tbody.innerHTML = "";
+  data.recent_logs.forEach(l => {
+    const row = `<tr><td>${l.timestamp}</td><td>${l.message}</td><td>${l.intent}</td></tr>`;
+    tbody.innerHTML += row;
+  });
 
-      document.getElementById('totalMessages').textContent = data.total_messages;
-      document.getElementById('uniqueSessions').textContent = data.unique_sessions;
-      document.getElementById('fallbackRate').textContent = data.fallback_rate + '%';
+  // ---- Charts ----
+  // Messages per day (simulated aggregation)
+  const dateCounts = {};
+  data.recent_logs.forEach(l => {
+    const date = l.timestamp.split("T")[0];
+    dateCounts[date] = (dateCounts[date] || 0) + 1;
+  });
+  const labels = Object.keys(dateCounts);
+  const values = Object.values(dateCounts);
 
-      // Pie Chart for success vs fallback
-      const success = 100 - data.fallback_rate;
-      const fallback = data.fallback_rate;
+  // Destroy old chart before creating new
+  if (messagesChart) messagesChart.destroy();
+  messagesChart = new Chart(document.getElementById("messagesChart"), {
+    type: "line",
+    data: {
+      labels,
+      datasets: [{
+        label: "Messages per Day",
+        data: values,
+        borderColor: "#4bc0c0",
+        backgroundColor: "rgba(75,192,192,0.2)",
+        tension: 0.3
+      }]
+    },
+    options: { plugins: { legend: { labels: { color: "white" } } }, scales: { x: { ticks: { color: "white" } }, y: { ticks: { color: "white" } } } }
+  });
 
-      if (successChart) successChart.destroy();
-      successChart = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-          labels: ['Success', 'Fallback'],
-          datasets: [{
-            data: [success, fallback],
-            backgroundColor: ['#28a745', '#dc3545']
-          }]
-        },
-        options: {
-          plugins: {
-            legend: {
-              position: 'bottom'
-            }
-          }
-        }
-      });
+  // Intents distribution (Pie)
+  const intentCounts = {};
+  data.recent_logs.forEach(l => {
+    intentCounts[l.intent] = (intentCounts[l.intent] || 0) + 1;
+  });
+  const intentLabels = Object.keys(intentCounts);
+  const intentValues = Object.values(intentCounts);
 
-      // Recent chat logs
-      const logsTable = document.getElementById('chatLogs');
-      logsTable.innerHTML = '';
-      data.recent_logs.forEach(log => {
-        const row = `<tr>
-          <td>${log.timestamp}</td>
-          <td>${log.user_message}</td>
-          <td>${log.intent}</td>
-        </tr>`;
-        logsTable.insertAdjacentHTML('beforeend', row);
-      });
-    }
+  if (intentsChart) intentsChart.destroy();
+  intentsChart = new Chart(document.getElementById("intentsChart"), {
+    type: "pie",
+    data: {
+      labels: intentLabels,
+      datasets: [{
+        data: intentValues,
+        backgroundColor: ["#36a2eb", "#ff6384", "#ffcd56", "#4bc0c0", "#9966ff"]
+      }]
+    },
+    options: { plugins: { legend: { labels: { color: "white" } } } }
+  });
+}
 
-    document.getElementById('refreshBtn').addEventListener('click', loadDashboard);
-
-    loadDashboard();
-  </script>
-
+loadStats();
+setInterval(loadStats, 15000); // auto refresh every 15s
+</script>
 </body>
 </html>
