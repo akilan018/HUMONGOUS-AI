@@ -1,4 +1,4 @@
-# main.py
+
 import os
 import uuid
 import httpx
@@ -15,12 +15,10 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.cors import CORSMiddleware
 
 import motor.motor_asyncio
-
-# Import your existing NLP engine (must provide get_intent and get_response)
 from nlp_engine import NlpEngine
 
 # ----------------------------
-# Configuration (from .env)
+# Configuration
 # ----------------------------
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-latest:generateContent"
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -28,11 +26,11 @@ MONGO_URI = os.getenv("MONGO_URI")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 
 # ----------------------------
-# App + Templates + Static
+# App setup
 # ----------------------------
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
-# optional static dir
+
 if os.path.isdir("static"):
     app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -45,24 +43,24 @@ app.add_middleware(
 )
 
 # ----------------------------
-# Mongo (motor async client)
+# MongoDB (Motor)
 # ----------------------------
 if not MONGO_URI:
-    raise RuntimeError("MONGO_URI is not set in environment")
+    raise RuntimeError("MONGO_URI is missing in environment")
 
 mongo_client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_URI)
-db = mongo_client.get_default_database() if mongo_client is not None else mongo_client
-# Fallback to explicit name if env URI doesn't set a DB: use 'humongous_ai'
-if not db or db.name is None or db.name == "admin":
-    db = mongo_client["humongous_ai"]
-chat_collection = db["chat_logs"]
-
-# Simple ping test at startup (will print in logs)
 try:
     mongo_client.admin.command("ping")
     print("✅ MongoDB connected (ping OK).")
 except Exception as e:
-    print(f"❌ MongoDB ping failed: {e}")
+    print(f"❌ MongoDB connection failed: {e}")
+
+# Ensure correct database selection (Render/Mongo Atlas safe)
+db = mongo_client.get_default_database()
+if not db or db.name is None or db.name == "admin":
+    db = mongo_client["humongous_ai"]
+
+chat_collection = db["chat_logs"]
 
 # ----------------------------
 # NLP Engine
@@ -75,62 +73,55 @@ except Exception as e:
     engine = None
 
 # ----------------------------
-# Utilities: DB helpers
+# Utility: Logging & Fetching
 # ----------------------------
-async def log_interaction(session_id: str, sender: str, message: str, response: str = None, intent: str = None):
-    """Insert one chat log document (async)."""
+async def log_interaction(session_id, sender, message, response=None, intent=None):
     doc = {
         "session_id": session_id,
         "timestamp": datetime.utcnow(),
         "sender": sender,
         "message": message,
     }
-    if response is not None:
+    if response:
         doc["response"] = response
-    if intent is not None:
+    if intent:
         doc["intent"] = intent
     try:
-        res = await chat_collection.insert_one(doc)
-        # debug print — visible in Render logs / terminal
-        print(f"✅ Logged chat (id={res.inserted_id})")
+        await chat_collection.insert_one(doc)
+        print(f"✅ Logged chat for {sender}")
     except Exception as e:
-        print(f"⚠️ Failed to log interaction: {e}")
+        print(f"⚠️ Log failed: {e}")
 
-async def get_all_chat_logs(limit: int = 1000) -> List[Dict[str, Any]]:
-    """Return list of logs (most recent first)."""
+async def get_all_chat_logs(limit=1000):
     cursor = chat_collection.find().sort("timestamp", -1).limit(limit)
-    docs = []
-    async for d in cursor:
-        d.pop("_id", None)
-        # format timestamp for frontend
-        ts = d.get("timestamp")
-        if isinstance(ts, datetime):
-            d["timestamp"] = ts.strftime("%Y-%m-%d %H:%M:%S")
-        docs.append(d)
-    return docs
+    data = []
+    async for doc in cursor:
+        doc.pop("_id", None)
+        if isinstance(doc.get("timestamp"), datetime):
+            doc["timestamp"] = doc["timestamp"].strftime("%Y-%m-%d %H:%M:%S")
+        data.append(doc)
+    return data
 
 # ----------------------------
-# Gemini call (async)
+# Gemini API Call
 # ----------------------------
 async def call_gemini_api(prompt: str) -> str:
     if not GEMINI_API_KEY:
-        return "**Error:** GEMINI_API_KEY not configured."
+        return "⚠️ Missing GEMINI_API_KEY"
     headers = {"Content-Type": "application/json"}
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(f"{GEMINI_API_URL}?key={GEMINI_API_KEY}", json=payload, headers=headers)
-            resp.raise_for_status()
-            result = resp.json()
-            if "candidates" in result and result["candidates"]:
-                return result["candidates"][0]["content"]["parts"][0]["text"]
-            return "I couldn't generate a response right now."
+            r = await client.post(f"{GEMINI_API_URL}?key={GEMINI_API_KEY}", json=payload, headers=headers)
+            r.raise_for_status()
+            data = r.json()
+            return data["candidates"][0]["content"]["parts"][0]["text"]
     except Exception as e:
-        print(f"❌ Gemini API error: {e}")
-        return "AI service currently unavailable."
+        print(f"❌ Gemini API Error: {e}")
+        return "AI service unavailable now."
 
 # ----------------------------
-# Routes: index + admin
+# Routes
 # ----------------------------
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
@@ -138,101 +129,80 @@ async def index(request: Request):
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_page(request: Request, password: str):
-    """Password protected admin page. Use ?password=..."""
     if password != ADMIN_PASSWORD:
         raise HTTPException(status_code=401, detail="Unauthorized")
     return templates.TemplateResponse("admin_dashboard.html", {"request": request})
 
 @app.get("/api/admin/stats")
 async def api_admin_stats():
-    """Return stats used by admin dashboard (JSON)."""
     logs = await get_all_chat_logs(limit=2000)
-    total_messages = len(logs)
-    unique_sessions = len(set(log.get("session_id") for log in logs))
-    fallback_count = sum(1 for l in logs if (l.get("intent") == "fallback" or l.get("intent") == "unknown"))
-    fallback_rate = round((fallback_count / total_messages) * 100, 2) if total_messages else 0.0
-    recent_logs = logs[:10]
+    total = len(logs)
+    unique = len(set(l.get("session_id") for l in logs))
+    fallback = sum(1 for l in logs if l.get("intent") in ["fallback", "unknown"])
+    rate = round((fallback / total) * 100, 2) if total else 0
     return JSONResponse({
-        "total_messages": total_messages,
-        "unique_sessions": unique_sessions,
-        "fallback_rate": fallback_rate,
-        "recent_logs": recent_logs
+        "total_messages": total,
+        "unique_sessions": unique,
+        "fallback_rate": rate,
+        "recent_logs": logs[:10]
     })
 
 # ----------------------------
-# WebSocket chat
+# WebSocket Chat
 # ----------------------------
 @app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    await websocket.accept()
-    session_id = str(uuid.uuid4())
-    print(f"⚡ WebSocket opened session={session_id}")
+async def websocket_endpoint(ws: WebSocket):
+    await ws.accept()
+    session = str(uuid.uuid4())
+    print(f"⚡ WebSocket started: {session}")
 
-    if not engine:
-        await websocket.send_json({"type": "error", "message": "NLP engine not available."})
-        await websocket.close()
-        return
-
-    # send greeting
-    try:
-        greeting = engine.get_response(engine.get_intent("hello"))
-    except Exception:
-        greeting = "Hello — I'm Humongous AI."
-    await websocket.send_json({"type": "chat", "message": greeting})
-    # Log greeting as bot message
-    await log_interaction(session_id, "bot", greeting, response=None, intent="hello")
-
-    try:
-        while True:
-            user_text = await websocket.receive_text()
-            print(f"🗣 User ({session_id}): {user_text}")
-            await log_interaction(session_id, "user", user_text)
-
-            # determine intent & basic response
-            matched_intent = engine.get_intent(user_text)
-            intent_tag = matched_intent.get("tag", "unknown") if matched_intent else "unknown"
-
-            COMPLEX_INTENTS = {
-                'creator', 'creator_details', 'who_are_you', 'capabilities', 'company_info',
-                'hours', 'location', 'origin', 'payments', 'returns', 'shipping', 'tracking',
-                'order_management', 'discounts', 'technical_support', 'account_issues',
-                'privacy_policy', 'product_info', 'feedback', 'human_handoff', 'billing_issues'
-            }
-
-            if intent_tag in COMPLEX_INTENTS:
-                context_answer = engine.get_response(matched_intent)
-                prompt = f"""
-You are Humongous AI, a friendly assistant created by Akilan S R.
-Answer the user's question using ONLY the context below. Do not invent facts.
-
-CONTEXT:
-"{context_answer}"
-
-USER QUESTION:
-"{user_text}"
-
-ANSWER:
-"""
-                bot_text = await call_gemini_api(prompt)
-                bot_text = f"✨ {bot_text}"
-            else:
-                bot_text = engine.get_response(matched_intent)
-
-            # send and log
-            await websocket.send_json({"type": "chat", "message": bot_text})
-            await log_interaction(session_id, "bot", bot_text, response=bot_text, intent=intent_tag)
-            print(f"✅ Responded (intent={intent_tag})")
-    except WebSocketDisconnect:
-        print(f"🔌 Session {session_id} disconnected.")
-    except Exception as e:
-        print(f"⚠️ WebSocket error: {e}")
+    greeting = "Hello — I'm Humongous AI!"
+    if engine:
         try:
-            await websocket.close(code=1011)
+            greeting = engine.get_response(engine.get_intent("hello"))
         except Exception:
             pass
 
+    await ws.send_json({"type": "chat", "message": greeting})
+    await log_interaction(session, "bot", greeting, intent="hello")
+
+    try:
+        while True:
+            msg = await ws.receive_text()
+            print(f"🗣 User: {msg}")
+            await log_interaction(session, "user", msg)
+
+            matched = engine.get_intent(msg)
+            intent_tag = matched.get("tag", "unknown") if matched else "unknown"
+
+            COMPLEX = {
+                "creator", "creator_details", "who_are_you", "capabilities", "company_info",
+                "hours", "location", "origin", "payments", "returns", "shipping", "tracking",
+                "order_management", "discounts", "technical_support", "account_issues",
+                "privacy_policy", "product_info", "feedback", "human_handoff", "billing_issues"
+            }
+
+            if intent_tag in COMPLEX:
+                context = engine.get_response(matched)
+                prompt = f"""
+You are Humongous AI, a friendly assistant created by Akilan S R.
+Answer using only this context: "{context}"
+User asked: "{msg}"
+"""
+                bot_reply = f"✨ {await call_gemini_api(prompt)}"
+            else:
+                bot_reply = engine.get_response(matched)
+
+            await ws.send_json({"type": "chat", "message": bot_reply})
+            await log_interaction(session, "bot", bot_reply, response=bot_reply, intent=intent_tag)
+    except WebSocketDisconnect:
+        print(f"🔌 WebSocket closed: {session}")
+    except Exception as e:
+        print(f"⚠️ WebSocket Error: {e}")
+        await ws.close()
+
 # ----------------------------
-# Start (if run directly)
+# Run
 # ----------------------------
 if __name__ == "__main__":
     import uvicorn
