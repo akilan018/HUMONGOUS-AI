@@ -25,7 +25,7 @@ from nlp_engine import NlpEngine
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-latest:generateContent"
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 MONGO_URI = os.getenv("MONGO_URI")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "MySuperSecretPassword123")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
 
 # ----------------------------
 # App + Templates + Static
