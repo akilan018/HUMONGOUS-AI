@@ -1,3 +1,4 @@
+# main.py
 import os
 import uuid
 import httpx
@@ -12,7 +13,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.cors import CORSMiddleware
 
 from pymongo import MongoClient
-from nlp_engine import NlpEngine
+from nlp_engine import NlpEngine  # your existing engine
 
 # ----------------------------
 # CONFIG
@@ -21,7 +22,7 @@ load_dotenv()
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-latest:generateContent"
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 MONGO_URI = os.getenv("MONGO_URI")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin")  # default to 'admin' if not provided
 
 # ----------------------------
 # FASTAPI SETUP
@@ -41,21 +42,29 @@ app.add_middleware(
 )
 
 # ----------------------------
-# MONGO SETUP
+# MONGO SETUP (pymongo sync)
 # ----------------------------
 if not MONGO_URI:
-    raise RuntimeError("❌ Missing MONGO_URI in environment!")
+    raise RuntimeError("❌ Missing MONGO_URI in environment")
 
 try:
     mongo_client = MongoClient(MONGO_URI)
+    # quick ping
     mongo_client.admin.command("ping")
     print("✅ MongoDB connected successfully")
 except Exception as e:
     print(f"❌ MongoDB connection failed: {e}")
     mongo_client = None
 
-db = mongo_client.get_default_database() if mongo_client else None
-if db is None or db.name == "admin":
+# choose DB: prefer default DB encoded in URI, else use humongous_ai
+db = None
+if mongo_client:
+    try:
+        db = mongo_client.get_default_database()
+    except Exception:
+        db = None
+
+if db is None or (hasattr(db, "name") and db.name == "admin"):
     db = mongo_client["humongous_ai"]
 
 chat_collection = db["chat_logs"]
@@ -71,19 +80,31 @@ except Exception as e:
     engine = None
 
 # ----------------------------
-# HELPER FUNCTIONS
+# HELPERS
 # ----------------------------
-def log_interaction(session_id, sender, message, response=None, intent=None):
-    """Store chat logs in MongoDB"""
-    doc = {
+def _format_timestamp(ts) -> str:
+    """Return ISO string for datetime-like objects or str for others."""
+    if isinstance(ts, datetime):
+        return ts.isoformat()
+    if isinstance(ts, str):
+        return ts
+    try:
+        # fallback: try to convert
+        return str(ts)
+    except Exception:
+        return ""
+
+def log_interaction(session_id: str, sender: str, message: str, response: str = None, intent: str = None) -> None:
+    """Insert a chat log document into MongoDB (synchronous)."""
+    doc: Dict[str, Any] = {
         "session_id": session_id,
-        "timestamp": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+        "timestamp": datetime.utcnow(),
         "sender": sender,
         "message": message,
     }
-    if response:
+    if response is not None:
         doc["response"] = response
-    if intent:
+    if intent is not None:
         doc["intent"] = intent
     try:
         chat_collection.insert_one(doc)
@@ -91,19 +112,29 @@ def log_interaction(session_id, sender, message, response=None, intent=None):
     except Exception as e:
         print(f"⚠️ Failed to log chat: {e}")
 
-def get_all_chat_logs(limit=1000):
+def get_all_chat_logs(limit: int = 0) -> List[Dict[str, Any]]:
+    """
+    Return all chat logs as list of dicts with _id removed and timestamp formatted.
+    limit=0 -> no limit (return all)
+    """
     try:
-        docs = chat_collection.find().sort("timestamp", -1).limit(limit)
+        cursor = chat_collection.find().sort("timestamp", -1)
+        if limit and limit > 0:
+            cursor = cursor.limit(limit)
         logs = []
-        for d in docs:
+        for d in cursor:
             d.pop("_id", None)
+            # format timestamp to ISO string to avoid subscriptable errors
+            if "timestamp" in d:
+                d["timestamp"] = _format_timestamp(d["timestamp"])
             logs.append(d)
         return logs
     except Exception as e:
         print(f"⚠️ Failed to get logs: {e}")
         return []
 
-async def call_gemini_api(prompt: str):
+async def call_gemini_api(prompt: str) -> str:
+    """Call Gemini via httpx. Returns textual reply or error message."""
     if not GEMINI_API_KEY:
         return "⚠️ Missing GEMINI_API_KEY"
     headers = {"Content-Type": "application/json"}
@@ -113,7 +144,13 @@ async def call_gemini_api(prompt: str):
             res = await client.post(f"{GEMINI_API_URL}?key={GEMINI_API_KEY}", json=payload, headers=headers)
             res.raise_for_status()
             data = res.json()
-            return data["candidates"][0]["content"]["parts"][0]["text"]
+            # defensive parsing
+            if isinstance(data, dict) and "candidates" in data and data["candidates"]:
+                try:
+                    return data["candidates"][0]["content"]["parts"][0]["text"]
+                except Exception:
+                    return str(data)
+            return str(data)
     except Exception as e:
         print(f"❌ Gemini API error: {e}")
         return "AI service temporarily unavailable."
@@ -127,31 +164,50 @@ async def index(request: Request):
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_dashboard(request: Request, password: str):
+    # simple query-param based auth; keep secure in production
     if password != ADMIN_PASSWORD:
         raise HTTPException(status_code=401, detail="Unauthorized")
     return templates.TemplateResponse("admin_dashboard.html", {"request": request})
 
 @app.get("/api/admin/stats")
 def admin_stats():
+    """
+    Return dashboard JSON. This endpoint converts timestamps to strings
+    and is robust against datetime objects (fixes subscriptable error).
+    """
     try:
-        logs = get_all_chat_logs(limit=2000)
+        logs = get_all_chat_logs(limit=0)  # return all
         total = len(logs)
-        unique_sessions = len(set(l.get("session_id") for l in logs if l.get("session_id")))
+        unique_sessions = len({l.get("session_id") for l in logs if l.get("session_id")})
         fallback_count = sum(1 for l in logs if l.get("intent") in ["fallback", "unknown"])
         fallback_rate = round((fallback_count / total) * 100, 2) if total else 0.0
 
-        # Message timeline (by date)
-        msg_timeline = {}
+        # timeline aggregated by date (YYYY-MM-DD)
+        msg_timeline: Dict[str, int] = {}
         for l in logs:
-            ts = l.get("timestamp", "")[:10]
-            if ts:
-                msg_timeline[ts] = msg_timeline.get(ts, 0) + 1
+            ts = l.get("timestamp", "")
+            date_key = ts[:10] if isinstance(ts, str) and len(ts) >= 10 else ""
+            if date_key:
+                msg_timeline[date_key] = msg_timeline.get(date_key, 0) + 1
+
+        # recent logs: include sender, message, response, intent, timestamp
+        recent_logs = []
+        for l in logs:  # logs already sorted newest-first
+            rec = {
+                "timestamp": l.get("timestamp", ""),
+                "session_id": l.get("session_id"),
+                "sender": l.get("sender"),
+                "message": l.get("message"),
+                "response": l.get("response", ""),
+                "intent": l.get("intent", "")
+            }
+            recent_logs.append(rec)
 
         return JSONResponse({
             "total_messages": total,
             "unique_sessions": unique_sessions,
             "fallback_rate": fallback_rate,
-            "recent_logs": logs[:10],
+            "recent_logs": recent_logs,   # note: includes ALL logs; front-end can slice
             "timeline": msg_timeline
         })
     except Exception as e:
@@ -167,35 +223,61 @@ async def websocket_endpoint(websocket: WebSocket):
     session_id = str(uuid.uuid4())
     print(f"⚡ WebSocket connected: {session_id}")
 
+    # greeting (use engine if available)
     greeting = "Hello! I'm Humongous AI."
+    if engine:
+        try:
+            # engine may have get_intent/get_response; adapt to your engine's API
+            greeting = engine.get_response(engine.get_intent("hello"))
+        except Exception:
+            pass
+
     await websocket.send_json({"type": "chat", "message": greeting})
     log_interaction(session_id, "bot", greeting, intent="hello")
 
     try:
         while True:
             user_msg = await websocket.receive_text()
+            print(f"🗣 User: {user_msg}")
             log_interaction(session_id, "user", user_msg)
 
-            matched = engine.get_intent(user_msg)
-            intent_tag = matched.get("tag", "unknown") if matched else "unknown"
+            intent_tag = "unknown"
+            matched = None
+            if engine:
+                try:
+                    matched = engine.get_intent(user_msg)
+                    intent_tag = matched.get("tag", "unknown") if isinstance(matched, dict) else str(matched)
+                except Exception:
+                    intent_tag = "unknown"
 
-            if intent_tag not in ["fallback", "unknown"]:
-                bot_msg = engine.get_response(matched)
+            # Use engine static response for known intents, Gemini for complex/fallback
+            if engine and intent_tag not in ["fallback", "unknown"]:
+                try:
+                    bot_msg = engine.get_response(matched)
+                except Exception:
+                    bot_msg = "Sorry, I couldn't generate a response right now."
             else:
-                prompt = f"User: {user_msg}\nYou are Humongous AI created by Akilan S R. Respond helpfully."
-                bot_msg = await call_gemini_api(prompt)
+                # fallback to Gemini (or a simple reply if GEMINI_API_KEY missing)
+                if GEMINI_API_KEY:
+                    prompt = f"You are Humongous AI, created by Akilan S R. Use the context: '{user_msg}' and answer concisely."
+                    bot_msg = await call_gemini_api(prompt)
+                else:
+                    bot_msg = "I'm having trouble connecting to my AI service right now."
 
             await websocket.send_json({"type": "chat", "message": bot_msg})
-            log_interaction(session_id, "bot", bot_msg, intent=intent_tag)
+            log_interaction(session_id, "bot", bot_msg, response=bot_msg, intent=intent_tag)
 
     except WebSocketDisconnect:
         print(f"🔌 Disconnected: {session_id}")
     except Exception as e:
         print(f"⚠️ WebSocket error: {e}")
-        await websocket.close()
+        try:
+            await websocket.close(code=1011)
+        except Exception:
+            pass
 
 # ----------------------------
-# START SERVER
+# START
 # ----------------------------
 if __name__ == "__main__":
     import uvicorn
