@@ -9,15 +9,20 @@ from fastapi.templating import Jinja2Templates
 from nlp_engine import NlpEngine
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware 
+from pymongo import MongoClient  # ✅ MongoDB support
+
+# --- LOAD ENVIRONMENT VARIABLES ---
+load_dotenv()
 
 # --- CONFIGURATION ---
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-latest:generateContent"
+MONGO_URI = os.getenv("MONGO_URI")
 
 # --- INITIALIZATION ---
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 
-# CRITICAL FIX for "Connecting..." issue on deployment
+# --- CORS FIX (For deployment / local testing) ---
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], 
@@ -26,6 +31,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- CONNECT TO MONGODB ---
+try:
+    mongo_client = MongoClient(MONGO_URI)
+    db = mongo_client["humongous_ai"]  # ✅ your database name
+    chat_logs = db["chat_logs"]        # collection name
+    print("✅ MongoDB connected successfully.")
+except Exception as e:
+    print(f"❌ MongoDB connection failed: {e}")
+    db = None
+
+# --- NLP ENGINE INITIALIZATION ---
 engine = None
 try:
     engine = NlpEngine(intents_file="intents.json")
@@ -33,9 +49,8 @@ try:
 except Exception as e:
     print(f"❌ Failed to initialize the NLP Engine: {e}")
 
-# --- Gemini API Call Function ---
+# --- GEMINI API CALL FUNCTION ---
 async def call_gemini_api(prompt: str):
-    load_dotenv()
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
     if not GEMINI_API_KEY:
         return "**Error:** The `GEMINI_API_KEY` is not configured on the server."
@@ -59,7 +74,7 @@ async def call_gemini_api(prompt: str):
 async def read_root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
-# --- WEBSOCKET ENDPOINT (FINAL HYBRID LOGIC) ---
+# --- WEBSOCKET ENDPOINT ---
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
@@ -87,38 +102,47 @@ async def websocket_endpoint(websocket: WebSocket):
             ]
             
             if intent_tag in COMPLEX_INTENTS:
-                # For complex business intents, use Gemini to generate a smart, unique response.
-                print(f"Intent is '{intent_tag}'. Calling Gemini API for a smart, generative response...")
+                # For complex business intents, use Gemini API for detailed response
+                print(f"Intent '{intent_tag}' → Using Gemini API")
                 
                 context_answer = engine.get_response(matched_intent)
                 
                 prompt = f"""
-                You are Humongous AI, a helpful and friendly expert assistant created by Akilan S R.
-                Your task is to provide a detailed, conversational answer to the user's question based ONLY on the provided context.
-                Do not add any information that is not in the context.
+                You are Humongous AI, a friendly and knowledgeable assistant created by Akilan S R.
+                Your goal is to give a clear, conversational answer based ONLY on the provided context.
+                Do not add unrelated details.
 
                 CONTEXT:
                 "{context_answer}"
 
-                USER'S QUESTION:
+                USER QUESTION:
                 "{user_message}"
 
-                YOUR HELPFUL AND DETAILED CONVERSATIONAL ANSWER:
+                ANSWER:
                 """
                 
                 gemini_response = await call_gemini_api(prompt)
                 bot_response = f"✨ {gemini_response}"
 
             else:
-                # For simple intents (like jokes) and fallbacks, use the fast, static response.
-                print(f"Intent is '{intent_tag}'. Responding with static answer.")
+                # For simple or fallback intents, use static response
+                print(f"Intent '{intent_tag}' → Using static response")
                 bot_response = engine.get_response(matched_intent)
             
+            # ✅ Store chat in MongoDB
+            if db:
+                chat_logs.insert_one({
+                    "session_id": str(uuid.uuid4()),
+                    "user_message": user_message,
+                    "bot_response": bot_response,
+                    "intent": intent_tag
+                })
+
             await websocket.send_json({"type": "chat", "message": bot_response})
-            print(f"==> Final Response Sent with Intent: '{intent_tag}'")
+            print(f"==> Final Response Sent ({intent_tag})")
 
     except WebSocketDisconnect:
         print("WebSocket connection closed.")
     except Exception as e:
-        print(f"An error occurred in WebSocket: {e}")
+        print(f"❌ WebSocket error: {e}")
         await websocket.close(code=1011)
