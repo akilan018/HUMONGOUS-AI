@@ -1,4 +1,3 @@
-# main.py
 import os
 import uuid
 import httpx
@@ -81,11 +80,17 @@ except Exception as e:
 # HELPERS
 # ----------------------------
 def _format_timestamp(ts) -> str:
+    """Safe conversion of timestamps to string"""
     if isinstance(ts, datetime):
         return ts.strftime("%Y-%m-%d %H:%M:%S")
+    if isinstance(ts, (int, float)):
+        return datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
+    if isinstance(ts, str):
+        return ts
     return str(ts)
 
 def log_interaction(session_id: str, sender: str, message: str, response: str = None, intent: str = None):
+    """Insert chat logs safely into MongoDB"""
     doc: Dict[str, Any] = {
         "session_id": session_id,
         "timestamp": datetime.utcnow(),
@@ -98,10 +103,12 @@ def log_interaction(session_id: str, sender: str, message: str, response: str = 
         doc["intent"] = intent
     try:
         chat_collection.insert_one(doc)
+        print(f"✅ Log saved for sender={sender}")
     except Exception as e:
         print(f"⚠️ Failed to log chat: {e}")
 
 def get_all_chat_logs(limit: int = 0) -> List[Dict[str, Any]]:
+    """Fetch all logs and make them JSON serializable"""
     try:
         cursor = chat_collection.find().sort("timestamp", -1)
         if limit > 0:
@@ -153,6 +160,7 @@ async def admin_dashboard(request: Request, password: str):
 
 @app.get("/api/admin/stats")
 def admin_stats():
+    """Return dashboard metrics safely"""
     try:
         logs = get_all_chat_logs()
         total = len(logs)
@@ -166,13 +174,14 @@ def admin_stats():
             if date_key:
                 msg_timeline[date_key] = msg_timeline.get(date_key, 0) + 1
 
+        # Include all logs safely
         recent_logs = []
         for l in logs:
             recent_logs.append({
                 "timestamp": l.get("timestamp", ""),
                 "session_id": l.get("session_id"),
                 "sender": l.get("sender"),
-                "message": l.get("message"),
+                "message": l.get("message", ""),
                 "response": l.get("response", ""),
                 "intent": l.get("intent", "")
             })
@@ -229,7 +238,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 except Exception:
                     bot_msg = "Sorry, I couldn’t find that answer right now."
             else:
-                # Strictly restrict Gemini to company-related answers
+                # Restrict Gemini to company context
                 company_context = (
                     "You are Humongous AI, an assistant for Akilan S R's company. "
                     "Only answer customer-related FAQs such as pricing, services, support, and company policies. "
