@@ -10,18 +10,19 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.cors import CORSMiddleware
-
 from pymongo import MongoClient
+
 from nlp_engine import NlpEngine  # your existing engine
 
 # ----------------------------
 # CONFIG
 # ----------------------------
 load_dotenv()
+
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-latest:generateContent"
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 MONGO_URI = os.getenv("MONGO_URI")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin")  # default admin password
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin")
 
 # ----------------------------
 # FASTAPI SETUP
@@ -41,7 +42,7 @@ app.add_middleware(
 )
 
 # ----------------------------
-# MONGO (Sync)
+# DATABASE SETUP
 # ----------------------------
 if not MONGO_URI:
     raise RuntimeError("❌ Missing MONGO_URI in environment")
@@ -54,33 +55,27 @@ except Exception as e:
     print(f"❌ MongoDB connection failed: {e}")
     mongo_client = None
 
-db = None
-if mongo_client:
-    try:
-        db = mongo_client.get_default_database()
-    except Exception:
-        db = None
-
-if db is None or (hasattr(db, "name") and db.name == "admin"):
+db = mongo_client.get_default_database() if mongo_client else None
+if not db or db.name == "admin":
     db = mongo_client["humongous_ai"]
 
 chat_collection = db["chat_logs"]
 
 # ----------------------------
-# NLP ENGINE
+# NLP ENGINE INIT
 # ----------------------------
 try:
     engine = NlpEngine(intents_file="intents.json")
     print("✅ NLP Engine initialized")
 except Exception as e:
-    print(f"❌ NLP Engine init failed: {e}")
+    print(f"⚠️ NLP Engine init failed: {e}")
     engine = None
 
 # ----------------------------
 # HELPERS
 # ----------------------------
 def _format_timestamp(ts) -> str:
-    """Safe conversion of timestamps to string"""
+    """Convert any timestamp to readable format."""
     if isinstance(ts, datetime):
         return ts.strftime("%Y-%m-%d %H:%M:%S")
     if isinstance(ts, (int, float)):
@@ -89,9 +84,10 @@ def _format_timestamp(ts) -> str:
         return ts
     return str(ts)
 
+
 def log_interaction(session_id: str, sender: str, message: str, response: str = None, intent: str = None):
-    """Insert chat logs safely into MongoDB"""
-    doc: Dict[str, Any] = {
+    """Log conversation messages into MongoDB."""
+    doc = {
         "session_id": session_id,
         "timestamp": datetime.utcnow(),
         "sender": sender,
@@ -101,30 +97,33 @@ def log_interaction(session_id: str, sender: str, message: str, response: str = 
         doc["response"] = response
     if intent:
         doc["intent"] = intent
+
     try:
         chat_collection.insert_one(doc)
-        print(f"✅ Log saved for sender={sender}")
+        print(f"✅ Log saved for {sender}")
     except Exception as e:
         print(f"⚠️ Failed to log chat: {e}")
 
+
 def get_all_chat_logs(limit: int = 0) -> List[Dict[str, Any]]:
-    """Fetch all logs and make them JSON serializable"""
+    """Retrieve logs safely for dashboard."""
     try:
         cursor = chat_collection.find().sort("timestamp", -1)
         if limit > 0:
             cursor = cursor.limit(limit)
         logs = []
-        for d in cursor:
-            d.pop("_id", None)
-            d["timestamp"] = _format_timestamp(d.get("timestamp"))
-            logs.append(d)
+        for doc in cursor:
+            doc.pop("_id", None)
+            doc["timestamp"] = _format_timestamp(doc.get("timestamp"))
+            logs.append(doc)
         return logs
     except Exception as e:
         print(f"⚠️ Failed to get logs: {e}")
         return []
 
+
 async def call_gemini_api(prompt: str) -> str:
-    """Call Gemini strictly for company FAQs only (not general questions)."""
+    """Query Gemini API — restricted to customer FAQs only."""
     if not GEMINI_API_KEY:
         return "⚠️ Missing GEMINI_API_KEY"
     headers = {"Content-Type": "application/json"}
@@ -136,63 +135,73 @@ async def call_gemini_api(prompt: str) -> str:
             res.raise_for_status()
             data = res.json()
             if isinstance(data, dict) and "candidates" in data and data["candidates"]:
-                try:
-                    return data["candidates"][0]["content"]["parts"][0]["text"]
-                except Exception:
-                    return "I'm not sure about that. Please ask something related to our services."
-            return "I'm not sure about that. Please ask something related to our services."
+                return data["candidates"][0]["content"]["parts"][0]["text"]
     except Exception as e:
         print(f"❌ Gemini API error: {e}")
-        return "AI service temporarily unavailable."
+    return "I'm only trained to answer questions about our services and support."
 
 # ----------------------------
 # ROUTES
 # ----------------------------
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
+    """Main chatbot UI"""
     return templates.TemplateResponse("index.html", {"request": request})
+
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_dashboard(request: Request, password: str):
+    """Admin panel with password gate"""
     if password != ADMIN_PASSWORD:
         raise HTTPException(status_code=401, detail="Unauthorized")
     return templates.TemplateResponse("admin_dashboard.html", {"request": request})
 
+
 @app.get("/api/admin/stats")
 def admin_stats():
-    """Return dashboard metrics safely"""
+    """Dashboard analytics data endpoint"""
     try:
         logs = get_all_chat_logs()
-        total = len(logs)
+        total_messages = len(logs)
         unique_sessions = len({l.get("session_id") for l in logs if l.get("session_id")})
         fallback_count = sum(1 for l in logs if l.get("intent") in ["fallback", "unknown"])
-        fallback_rate = round((fallback_count / total) * 100, 2) if total else 0.0
+        fallback_rate = round((fallback_count / total_messages) * 100, 2) if total_messages else 0.0
 
-        msg_timeline: Dict[str, int] = {}
+        # Intent distribution
+        intent_counts: Dict[str, int] = {}
         for l in logs:
-            date_key = l.get("timestamp", "")[:10]
-            if date_key:
-                msg_timeline[date_key] = msg_timeline.get(date_key, 0) + 1
+            intent = l.get("intent", "unknown")
+            intent_counts[intent] = intent_counts.get(intent, 0) + 1
 
-        # Include all logs safely
-        recent_logs = []
-        for l in logs:
-            recent_logs.append({
-                "timestamp": l.get("timestamp", ""),
-                "session_id": l.get("session_id"),
-                "sender": l.get("sender"),
-                "message": l.get("message", ""),
-                "response": l.get("response", ""),
-                "intent": l.get("intent", "")
-            })
+        # Convert for charts
+        chart_labels = list(intent_counts.keys())
+        chart_values = list(intent_counts.values())
+
+        # Recent chat logs
+        recent_logs = [
+            {
+                "timestamp": l.get("timestamp"),
+                "user_message": l.get("message", "") if l.get("sender") == "user" else "",
+                "intent_detected": l.get("intent", "")
+            }
+            for l in logs
+            if l.get("sender") == "user"
+        ]
+
+        analytics = {
+            "total_messages": total_messages,
+            "unique_sessions": unique_sessions,
+            "fallback_rate": f"{fallback_rate}%",
+            "raw_fallback_rate": fallback_rate,
+        }
 
         return JSONResponse({
-            "total_messages": total,
-            "unique_sessions": unique_sessions,
-            "fallback_rate": fallback_rate,
-            "recent_logs": recent_logs,
-            "timeline": msg_timeline
+            "analytics": analytics,
+            "logs": recent_logs,
+            "chart_labels": chart_labels,
+            "chart_values": chart_values
         })
+
     except Exception as e:
         print(f"⚠️ Dashboard data error: {e}")
         return JSONResponse({"error": str(e)}, status_code=500)
@@ -207,12 +216,6 @@ async def websocket_endpoint(websocket: WebSocket):
     print(f"⚡ WebSocket connected: {session_id}")
 
     greeting = "Hello! I'm Humongous AI, your assistant."
-    if engine:
-        try:
-            greeting = engine.get_response(engine.get_intent("hello"))
-        except Exception:
-            pass
-
     await websocket.send_json({"type": "chat", "message": greeting})
     log_interaction(session_id, "bot", greeting, intent="hello")
 
@@ -223,33 +226,33 @@ async def websocket_endpoint(websocket: WebSocket):
             log_interaction(session_id, "user", user_msg)
 
             intent_tag = "unknown"
-            matched = None
+            matched_intent = None
+
             if engine:
                 try:
-                    matched = engine.get_intent(user_msg)
-                    intent_tag = matched.get("tag", "unknown") if isinstance(matched, dict) else str(matched)
+                    matched_intent = engine.get_intent(user_msg)
+                    intent_tag = matched_intent.get("tag", "unknown")
                 except Exception:
                     intent_tag = "unknown"
 
-            # Prefer local intent responses (company FAQs)
             if engine and intent_tag not in ["fallback", "unknown"]:
                 try:
-                    bot_msg = engine.get_response(matched)
+                    bot_reply = engine.get_response(matched_intent)
                 except Exception:
-                    bot_msg = "Sorry, I couldn’t find that answer right now."
+                    bot_reply = "Sorry, I couldn’t find that answer right now."
             else:
-                # Restrict Gemini to company context
+                # Use Gemini for company-related FAQs only
                 company_context = (
-                    "You are Humongous AI, an assistant for Akilan S R's company. "
-                    "Only answer customer-related FAQs such as pricing, services, support, and company policies. "
-                    "If the user asks unrelated or general questions, politely say: "
+                    "You are Humongous AI, a professional assistant for Akilan S R's company. "
+                    "Only answer company-related FAQs such as services, support, pricing, and policies. "
+                    "If asked general or unrelated questions, respond: "
                     "'I'm only trained to answer questions about our services and support.'"
                 )
-                prompt = f"{company_context}\nUser: {user_msg}\nAnswer clearly and briefly."
-                bot_msg = await call_gemini_api(prompt)
+                prompt = f"{company_context}\nUser: {user_msg}\nProvide a clear, short answer."
+                bot_reply = await call_gemini_api(prompt)
 
-            await websocket.send_json({"type": "chat", "message": bot_msg})
-            log_interaction(session_id, "bot", bot_msg, response=bot_msg, intent=intent_tag)
+            await websocket.send_json({"type": "chat", "message": bot_reply})
+            log_interaction(session_id, "bot", bot_reply, response=bot_reply, intent=intent_tag)
 
     except WebSocketDisconnect:
         print(f"🔌 Disconnected: {session_id}")
