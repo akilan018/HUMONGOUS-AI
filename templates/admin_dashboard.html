@@ -1,107 +1,215 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="dark">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Humongous AI Dashboard</title>
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<style>
-body { background:#111; color:#fff; font-family:Poppins,sans-serif; }
-.card { background:#1c1c1c; border:none; border-radius:1rem; padding:1.5rem; margin-bottom:1.2rem; }
-h2 { color:#0ff; }
-.table-dark th, .table-dark td { color:#fff; }
-.btn-refresh { background:#007bff; color:white; border:none; padding:0.6rem 1.2rem; border-radius:0.5rem; }
-canvas { max-height:320px; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Humongous AI</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style> 
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: var(--bs-body-bg); 
+            transition: background-color 0.3s ease;
+        }
+        .stat-card { 
+            transition: all 0.2s ease-in-out; 
+            border: 1px solid var(--bs-border-color-translucent);
+        }
+        .stat-card:hover { 
+            transform: translateY(-5px); 
+            box-shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.2) !important; 
+        }
+        .icon-bg {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+        }
+        .table-hover tbody tr:hover {
+            background-color: var(--bs-tertiary-bg);
+        }
+    </style>
 </head>
 <body>
-<div class="container py-5">
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-      <h2>Humongous AI Dashboard</h2>
-      <p>Analytics for Akilan S R</p>
+    <div class="container-fluid p-4">
+        <!-- HEADER -->
+        <header class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom border-secondary">
+            <div>
+                <h1 class="h3 mb-0 text-body-emphasis">Humongous AI Dashboard</h1>
+                <small class="text-body-secondary">Analytics for Akilan S R</small>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <button onclick="window.location.reload();" class="btn btn-primary d-flex align-items-center gap-2">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                </button>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" id="darkModeSwitch" checked>
+                    <label class="form-check-label" for="darkModeSwitch"><i class="bi bi-sun-fill"></i></label>
+                </div>
+            </div>
+        </header>
+
+        <!-- STATS CARDS -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-4">
+                <div class="card h-100 shadow-sm border-0 stat-card">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="icon-bg bg-primary bg-opacity-10 me-4"><i class="bi bi-chat-dots-fill fs-2 text-primary"></i></div>
+                        <div>
+                            <h6 class="card-subtitle text-body-secondary mb-1">Total Messages</h6>
+                            <h2 class="card-title mb-0 fw-bold">{{ analytics.total_messages }}</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100 shadow-sm border-0 stat-card">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="icon-bg bg-success bg-opacity-10 me-4"><i class="bi bi-people-fill fs-2 text-success"></i></div>
+                        <div>
+                            <h6 class="card-subtitle text-body-secondary mb-1">Unique Sessions</h6>
+                            <h2 class="card-title mb-0 fw-bold">{{ analytics.unique_sessions }}</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card h-100 shadow-sm border-0 stat-card">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="icon-bg bg-danger bg-opacity-10 me-4"><i class="bi bi-question-diamond-fill fs-2 text-danger"></i></div>
+                        <div>
+                            <h6 class="card-subtitle text-body-secondary mb-1">Fallback Rate</h6>
+                            <h2 class="card-title mb-0 fw-bold">{{ analytics.fallback_rate }}</h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CHARTS & LOGS -->
+        <div class="row g-4">
+            <!-- Left Column -->
+            <div class="col-lg-4 d-flex flex-column gap-4">
+                 <div class="card h-100 shadow-sm border-0">
+                    <div class="card-header fw-bold">Success Rate</div>
+                    <div class="card-body d-flex align-items-center justify-content-center"><canvas id="successRateChart"></canvas></div>
+                </div>
+                <div class="card h-100 shadow-sm border-0">
+                    <div class="card-header fw-bold">Top Intents</div>
+                    <div class="card-body"><canvas id="intentChart"></canvas></div>
+                </div>
+            </div>
+            <!-- Right Column -->
+            <div class="col-lg-8">
+                <div class="card h-100 shadow-sm border-0">
+                    <div class="card-header fw-bold">Recent Chat Logs</div>
+                    <div class="table-responsive">
+                        <table class="table table-hover table-borderless mb-0">
+                            <thead>
+                                <tr>
+                                    <th scope="col" class="py-3 px-3 text-body-secondary">Timestamp</th>
+                                    <th scope="col" class="py-3 px-3 text-body-secondary">User Message</th>
+                                    <th scope="col" class.="py-3 px-3 text-body-secondary">Intent</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in logs[:15] %}
+                                <tr class="align-middle">
+                                    <td class="py-3 px-3 text-nowrap text-body-secondary small">{{ log.timestamp }}</td>
+                                    <td class="py-3 px-3">{{ log.user_message }}</td>
+                                    <td class="py-3 px-3">
+                                        <span class="badge rounded-pill {% if log.intent_detected == 'fallback' %} text-bg-danger {% else %} text-bg-secondary bg-opacity-25 {% endif %}">
+                                            {{ log.intent_detected }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-    <button class="btn-refresh" onclick="loadStats()">🔄 Refresh</button>
-  </div>
 
-  <div class="row text-center mb-4">
-    <div class="col-md-4"><div class="card"><h5>Total Messages</h5><h3 id="totalMessages">0</h3></div></div>
-    <div class="col-md-4"><div class="card"><h5>Unique Sessions</h5><h3 id="uniqueSessions">0</h3></div></div>
-    <div class="col-md-4"><div class="card"><h5>Fallback Rate</h5><h3 id="fallbackRate">0%</h3></div></div>
-  </div>
+    <script>
+        // --- Dark Mode Logic ---
+        const darkModeSwitch = document.getElementById('darkModeSwitch');
+        const htmlEl = document.documentElement;
 
-  <div class="card">
-    <h5>Messages Over Time</h5>
-    <canvas id="msgChart"></canvas>
-  </div>
+        const set_theme = (theme) => {
+            htmlEl.setAttribute('data-bs-theme', theme);
+            localStorage.setItem('theme', theme);
+            darkModeSwitch.checked = theme === 'dark';
+        };
 
-  <div class="card">
-    <h5>All Chat Logs</h5>
-    <table class="table table-dark table-striped mt-3">
-      <thead>
-        <tr><th>Timestamp</th><th>Sender</th><th>Message</th><th>Intent</th></tr>
-      </thead>
-      <tbody id="logs"><tr><td colspan="4">Loading...</td></tr></tbody>
-    </table>
-  </div>
-</div>
+        const currentTheme = localStorage.getItem('theme') || 'dark';
+        set_theme(currentTheme);
 
-<script>
-async function loadStats() {
-  try {
-    const res = await fetch("/api/admin/stats");
-    if (!res.ok) throw new Error("Failed to fetch stats");
-    const data = await res.json();
+        darkModeSwitch.addEventListener('change', function() {
+            set_theme(this.checked ? 'dark' : 'light');
+            intentChart.destroy();
+            successRateChart.destroy();
+            createCharts();
+        });
 
-    document.getElementById("totalMessages").textContent = data.total_messages;
-    document.getElementById("uniqueSessions").textContent = data.unique_sessions;
-    document.getElementById("fallbackRate").textContent = data.fallback_rate + "%";
+        // --- Chart.js Logic ---
+        let intentChart, successRateChart;
+        const rawFallbackRate = {{ analytics.raw_fallback_rate|default(0)|tojson|safe }};
+        const successRatePercent = 100 - rawFallbackRate;
 
-    // Table
-    const tbody = document.getElementById("logs");
-    tbody.innerHTML = "";
-    data.recent_logs.forEach(l => {
-      const row = `<tr>
-        <td>${l.timestamp}</td>
-        <td>${l.sender}</td>
-        <td>${l.message}</td>
-        <td>${l.intent || "-"}</td>
-      </tr>`;
-      tbody.innerHTML += row;
-    });
+        const createCharts = () => {
+            const isDarkMode = htmlEl.getAttribute('data-bs-theme') === 'dark';
+            const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+            const labelColor = isDarkMode ? '#adb5bd' : '#495057';
 
-    // Chart
-    const countByDate = {};
-    data.recent_logs.forEach(l => {
-      const date = l.timestamp?.split(" ")[0];
-      countByDate[date] = (countByDate[date] || 0) + 1;
-    });
-    const labels = Object.keys(countByDate).reverse();
-    const counts = Object.values(countByDate).reverse();
+            // Intent Distribution Chart
+            const intentCtx = document.getElementById('intentChart').getContext('2d');
+            const chartLabels = JSON.parse('{{ chart_labels|tojson|safe }}');
+            const chartValues = JSON.parse('{{ chart_values|tojson|safe }}');
+            const backgroundColors = chartLabels.map(label => label === 'fallback' ? 'rgba(220, 53, 69, 0.7)' : 'rgba(13, 110, 253, 0.7)');
 
-    const ctx = document.getElementById("msgChart").getContext("2d");
-    if (window.msgChart) window.msgChart.destroy();
-    window.msgChart = new Chart(ctx, {
-      type: "line",
-      data: { labels, datasets: [{
-        label: "Messages per Day",
-        data: counts,
-        borderColor: "#0ff",
-        backgroundColor: "rgba(0,255,255,0.2)",
-        tension: 0.3,
-        fill: true
-      }]},
-      options: { scales: { y: { beginAtZero: true } } }
-    });
+            intentChart = new Chart(intentCtx, {
+                type: 'bar',
+                data: {
+                    labels: chartLabels,
+                    datasets: [{ data: chartValues, backgroundColor: backgroundColors }]
+                },
+                options: {
+                    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                    scales: { x: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: labelColor } }, y: { grid: { display: false }, ticks: { color: labelColor } } },
+                    plugins: { legend: { display: false } }
+                }
+            });
 
-  } catch (err) {
-    console.error(err);
-    alert("Failed to load dashboard data");
-  }
-}
-
-loadStats();
-</script>
+            // Success Rate Chart
+            const successCtx = document.getElementById('successRateChart').getContext('2d');
+            successRateChart = new Chart(successCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Success', 'Fallback'],
+                    datasets: [{
+                        data: [successRatePercent, rawFallbackRate],
+                        backgroundColor: ['rgba(25, 135, 84, 0.7)', 'rgba(220, 53, 69, 0.7)'],
+                        borderColor: [isDarkMode ? '#212529' : '#fff', isDarkMode ? '#212529' : '#fff'],
+                        borderWidth: 4
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false, cutout: '70%',
+                    plugins: { legend: { position: 'bottom', labels: { color: labelColor } } }
+                }
+            });
+        };
+        createCharts(); // Initial chart creation
+    </script>
 </body>
 </html>
